@@ -64,10 +64,15 @@
 
 <!-- ===== SIDE PANEL ===== -->
 <aside class="side-panel" id="side-panel">
-  <div class="panel-header">
-    <svg viewBox="0 0 24 24" fill="none"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" fill="currentColor"/></svg>
-    ชุดปฏิบัติการ
-    <span class="incident-badge" id="incident-badge" title="จุดเกิดเหตุ">🔴 เหตุฉุกเฉิน</span>
+  <div class="panel-header" style="flex-wrap: wrap;">
+    <div style="display:flex; align-items:center; gap:0.5rem;">
+      <svg viewBox="0 0 24 24" fill="none" style="width:18px;height:18px;color:#f4a261"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" fill="currentColor"/></svg>
+      ชุดปฏิบัติการ
+    </div>
+    <div style="margin-left:auto; display:flex; gap:0.4rem; align-items:center;">
+      <span class="incident-badge" id="incident-badge" title="จุดเกิดเหตุ" style="margin-left:0;">🔴 เหตุฉุกเฉิน</span>
+      <button onclick="checkoutAll()" style="background:rgba(230,57,70,0.15); color:#e63946; border:1px solid rgba(230,57,70,0.4); border-radius:50px; padding:0.15rem 0.55rem; font-size:0.62rem; font-weight:700; cursor:pointer; white-space:nowrap;">Checkout All</button>
+    </div>
   </div>
   <div class="panel-list" id="panel-list">
     <div class="panel-empty" id="panel-empty">
@@ -266,11 +271,7 @@ function drawIncident() {
 
   const incIcon = L.divIcon({
     html: `<div class="inc-marker-wrap">
-             <div class="inc-marker-pin">
-               <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
-                 <path d="M12 2L1 21h22L12 2zm1 14h-2v-2h2v2zm0-4h-2V8h2v4z" fill="white"/>
-               </svg>
-             </div>
+             <div class="inc-marker-pin"></div>
              <div class="inc-marker-label">จุดเกิดเหตุ</div>
            </div>`,
     iconSize: [50, 50],
@@ -304,8 +305,10 @@ function updateIncidentBar() {
 //  AMBULANCE MARKER SVG
 // =====================================================
 function makeAmbulanceIcon(plate, level, index) {
-  const colors = ['#0077b6','#2a5298','#2d9d78','#f4a261','#6a4c93'];
-  const color = colors[index % colors.length];
+  let color = '#2a5298';
+  if (level === 'BLS') color = '#f4a261';
+  else if (level === 'ALS') color = '#e63946';
+  else if (level === 'CLS') color = '#6a4c93';
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 56 70">
     <ellipse cx="28" cy="66" rx="14" ry="4" fill="rgba(0,0,0,0.22)"/>
@@ -441,7 +444,7 @@ function updateMap(data) {
 
 function makePopupContent(c) {
   const v = c.vehicle;
-  const ops = (c.operators || []).map(o => `<div class="popup-op">${o.avatar || '👤'} ${o.name}</div>`).join('');
+  const ops = (c.operators || []).map(o => `<div class="popup-op">${o.avatar || '👤'} ${o.role}: ${o.name}</div>`).join('');
   const t = new Date(c.checkinTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
   return `
     <div class="popup-inner">
@@ -449,11 +452,11 @@ function makePopupContent(c) {
       <table class="popup-table">
         <tr><td>โรงพยาบาล</td><td><b>${v.hospital}</b></td></tr>
         <tr><td>ทะเบียน</td><td><b>${v.plate}</b></td></tr>
-        <tr><td>ระดับ</td><td><span class="popup-als">${v.level}</span></td></tr>
+        <tr><td>ระดับ</td><td><span class="popup-als level-${v.level}">${v.level}</span></td></tr>
         <tr><td>Check-in</td><td>${t} น.</td></tr>
       </table>
       <div class="popup-ops-label">ผู้ปฏิบัติการ (${(c.operators||[]).length} ท่าน)</div>
-      <div class="popup-ops-list">${ops}</div>
+      <div class="popup-ops-list">${ops || 'ไม่มี'}</div>
     </div>`;
 }
 
@@ -470,6 +473,16 @@ async function doCheckout(id) {
   try {
     await SyncManager.remove(String(id));
     if (activeRouteId === id) clearRoute();
+  } catch(e) { console.error(e); }
+}
+
+async function checkoutAll() {
+  if (!confirm('ยืนยันการ Check-out ทุกชุดปฏิบัติการ?')) return;
+  try {
+    for (const id of Object.keys(checkins)) {
+      await SyncManager.remove(String(id));
+    }
+    clearRoute();
   } catch(e) { console.error(e); }
 }
 
@@ -519,7 +532,7 @@ function updatePanel(data) {
           <div class="vc-id">${v.id}</div>
           <div class="vc-plate">${v.plate}</div>
         </div>
-        <span class="vc-als">${v.level}</span>
+        <span class="vc-als level-${v.level}">${v.level}</span>
       </div>
       <div class="vc-ops"><span>👥 ผู้ปฏิบัติการ: ${(c.operators||[]).length} ท่าน</span></div>
       <div class="vc-time">⏱ Check-in ${t} น.</div>

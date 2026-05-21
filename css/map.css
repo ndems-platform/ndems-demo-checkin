@@ -125,7 +125,7 @@ body:has(.side-panel.collapsed) #map { right: 0; }
 .popup-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
 .popup-table td { padding: .2rem .3rem; color: rgba(255,255,255,.8); }
 .popup-table td:first-child { color: rgba(255,255,255,.45); width: 90px; }
-.popup-als { background: var(--accent); color: white; border-radius: 4px; padding: .1rem .4rem; font-size: .75rem; font-weight: 700; }
+.popup-als { color: white; border-radius: 4px; padding: .1rem .4rem; font-size: .75rem; font-weight: 700; display:inline-block; }
 .popup-ops-label { font-size: .72rem; color: rgba(255,255,255,.4); margin-top: .6rem; margin-bottom: .3rem; text-transform: uppercase; letter-spacing: .5px; }
 .popup-op { font-size: .8rem; color: rgba(255,255,255,.8); padding: .1rem 0; }
 
@@ -151,28 +151,26 @@ body:has(.side-panel.collapsed) #map { right: 0; }
 /* ===== INCIDENT MARKER ===== */
 .inc-marker-wrap { display: flex; flex-direction: column; align-items: center; }
 .inc-marker-pin {
-  width: 36px; height: 36px;
+  width: 22px; height: 22px;
   background: var(--accent);
   border-radius: 50%;
-  border: 3px solid white;
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 14px rgba(230,57,70,.6);
-  animation: incPulse 1.5s ease infinite;
+  border: 2px solid white;
+  box-shadow: 0 0 0 0 rgba(230,57,70, 0.7);
+  animation: incPulse 1.5s infinite cubic-bezier(0.66, 0, 0, 1);
 }
-.inc-marker-pin svg { }
 @keyframes incPulse {
-  0%,100% { box-shadow: 0 4px 14px rgba(230,57,70,.6); }
-  50%      { box-shadow: 0 4px 24px rgba(230,57,70,.9), 0 0 40px rgba(230,57,70,.3); }
+  to { box-shadow: 0 0 0 30px rgba(230,57,70, 0); }
 }
 .inc-marker-label {
-  margin-top: 6px;
-  background: var(--accent);
+  margin-top: 10px;
+  background: #1e293b;
   color: white;
   font-size: .65rem; font-weight: 700;
-  padding: .2rem .6rem;
+  padding: .25rem .75rem;
   border-radius: 50px;
   white-space: nowrap;
   box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  border: 1px solid rgba(255,255,255,0.15);
 }
 
 /* ===== ROUTE LINE ===== */
@@ -296,7 +294,10 @@ body:has(.side-panel.collapsed) #map { right: 0; }
 .vc-info { flex: 1; min-width: 0; }
 .vc-id { font-size: .78rem; font-weight: 700; color: var(--gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vc-plate { font-size: .72rem; color: rgba(255,255,255,.6); }
-.vc-als { background: var(--accent); color: white; border-radius: 4px; padding: .1rem .4rem; font-size: .7rem; font-weight: 700; flex-shrink: 0; }
+.vc-als { color: white; border-radius: 4px; padding: .1rem .4rem; font-size: .7rem; font-weight: 700; flex-shrink: 0; }
+.level-BLS { background: #f4a261 !important; }
+.level-ALS { background: #e63946 !important; }
+.level-CLS { background: #6a4c93 !important; }
 .vc-ops { display: flex; flex-wrap: wrap; gap: .25rem; margin-bottom: .35rem; }
 .vc-ops span { font-size: .65rem; color: rgba(255,255,255,.5); background: rgba(255,255,255,.06); border-radius: 4px; padding: .1rem .35rem; }
 .vc-time { font-size: .65rem; color: rgba(255,255,255,.35); margin-bottom: .5rem; }
