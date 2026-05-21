@@ -192,6 +192,12 @@ let activeVehicles = new Set();
 
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('auto') === 'operator' && !sessionStorage.getItem('ems_user')) {
+    sessionStorage.setItem('ems_user', JSON.stringify({username: 'operator', name: 'ผู้ปฏิบัติการ (Operator)', role: 'operator'}));
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
   const user = JSON.parse(sessionStorage.getItem('ems_user')||'{}');
   if (!user.username) { window.location.href='index.html'; return; }
 

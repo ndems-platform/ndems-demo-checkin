@@ -108,6 +108,15 @@
   </div>
 </div>
 
+<!-- ===== CHECKOUT POPUP ===== -->
+<div class="checkin-popup checkout-style" id="checkout-popup" style="display:none;">
+  <div class="popup-icon" style="background:rgba(230,57,70,0.1);color:#e63946;">🔴</div>
+  <div class="popup-content">
+    <div class="popup-title" id="checkout-title" style="color:#e63946;">Check-out สำเร็จ!</div>
+    <div class="popup-sub" id="checkout-sub">—</div>
+  </div>
+</div>
+
 <!-- ===== LEAFLET + QR + MQTT ===== -->
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -387,6 +396,10 @@ function updateMap(data) {
 
   Object.keys(markers).forEach(id => {
     if (!currentIds.has(id)) {
+      const vInfo = checkins[id]?.vehicle;
+      if (lastKnownIds.has(id) && vInfo) {
+        showCheckoutPopup(vInfo);
+      }
       mapInstance.removeLayer(markers[id]);
       delete markers[id];
     }
@@ -539,12 +552,20 @@ function togglePanel() {
 }
 
 // =====================================================
-//  CHECKIN POPUP NOTIFICATION
+//  CHECKIN / CHECKOUT POPUP NOTIFICATION
 // =====================================================
 function showCheckinPopup(v) {
   const pop = document.getElementById('checkin-popup');
   document.getElementById('popup-title').textContent = `Check-in สำเร็จ!`;
   document.getElementById('popup-sub').textContent   = `${v.id} • ${v.plate} • ${v.level}`;
+  pop.style.display = 'flex';
+  pop.classList.add('show');
+  setTimeout(() => { pop.classList.remove('show'); setTimeout(() => { pop.style.display='none'; }, 500); }, 4000);
+}
+
+function showCheckoutPopup(v) {
+  const pop = document.getElementById('checkout-popup');
+  document.getElementById('checkout-sub').textContent = `${v.id} • ${v.plate} • ${v.level}`;
   pop.style.display = 'flex';
   pop.classList.add('show');
   setTimeout(() => { pop.classList.remove('show'); setTimeout(() => { pop.style.display='none'; }, 500); }, 4000);
@@ -569,8 +590,8 @@ function startClock() {
 function generateQR() {
   const href = window.location.href;
   const url  = href.includes('map.html')
-    ? href.replace('map.html', 'checkin.html')
-    : (href.replace(/\/?$/, '/') + 'checkin.html');
+    ? href.replace('map.html', 'checkin.html?auto=operator')
+    : (href.replace(/\/?$/, '/') + 'checkin.html?auto=operator');
 
   const container = document.getElementById('qr-container');
   container.innerHTML = '';

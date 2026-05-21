@@ -126,6 +126,7 @@ function handleLogin(e) {
     const user=DEMO_USERS.find(x=>x.username===u&&x.password===p);
     if(user){
       sessionStorage.setItem('ems_user',JSON.stringify({username:u,name:user.name,role:user.role}));
+      sp.style.display='none'; bt.style.display='inline'; bn.disabled=false;
       if (user.role === 'operator') {
         window.location.href='checkin.html';
       } else {
@@ -142,6 +143,13 @@ if(sessionStorage.getItem('ems_user')) {
   if (u.role === 'operator') window.location.href='checkin.html';
   else window.location.href='map.html';
 }
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) {
+    document.getElementById('btn-spinner').style.display='none';
+    document.querySelector('.btn-text').style.display='inline';
+    document.getElementById('btn-login').disabled=false;
+  }
+});
 </script>
 </body>
 </html>
