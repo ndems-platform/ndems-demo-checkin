@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NDEMS – แจ้งเหตุฉุกเฉิน</title>
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a3a6c'/><text y='52%' x='50%' dominant-baseline='central' text-anchor='middle' font-size='60'>📞</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="css/checkin.css" />
+</head>
+
+<body>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="topbar-brand">
+        <img src="niems.png" alt="NIEMS" class="topbar-logo" onerror="this.style.display='none'" />
+        <div>
+          <span class="topbar-title">NDEMS <span
+              style="background:#e63946;color:white;padding:2px 6px;border-radius:4px;font-size:0.7rem;vertical-align:middle;margin-left:4px;">DEMO</span></span>
+          <span class="topbar-sep">|</span>
+          <span class="topbar-sub">แจ้งเหตุฉุกเฉิน</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span class="user-name" id="user-name-display">ผู้ใช้งาน</span>
+        <button class="btn-logout" onclick="logout()">ออก</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <section class="card" id="step-1">
+      <div class="card-hd blue">
+        <div class="card-hd-icon">📞</div>
+        <div>
+          <h2 class="card-title">แจ้งเหตุฉุกเฉิน</h2>
+          <p class="card-desc">กรุณาระบุข้อมูลให้ครบถ้วน</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="field-group">
+          <label class="field-label" for="inp-phone"><span class="badge-num">1</span> เบอร์โทรศัพท์ติดต่อ</label>
+          <input type="tel" id="inp-phone" class="inp" placeholder="08XXXXXXXX" autocomplete="tel" oninput="checkForm()" />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label"><span class="badge-num">2</span> ตำแหน่งจุดเกิดเหตุ (เลื่อนหมุดบนแผนที่เพื่อแก้ไข)</label>
+          <div id="checkin-map"
+            style="height: 250px; border-radius: 8px; margin-top: 0.5rem; background: #e9ecef; z-index: 1;"></div>
+          <div id="loc-status" style="font-size: 0.75rem; color: #666; margin-top: 0.4rem;">กำลังค้นหาตำแหน่ง...</div>
+        </div>
+
+        <div class="actions">
+          <button class="btn-next" id="btn-submit" onclick="doReport()" disabled>
+            แจ้งเหตุฉุกเฉิน
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SUCCESS -->
+    <section id="step-ok" class="success-sec" style="display:none">
+      <div class="ok-circle">✓</div>
+      <h2 class="ok-title">แจ้งเหตุสำเร็จ!</h2>
+      <p class="ok-desc">เจ้าหน้าที่ได้รับข้อมูลของคุณแล้ว<br>กรุณารอรับการติดต่อกลับ</p>
+      <button class="btn-more" onclick="resetForm()">+ แจ้งเหตุใหม่</button>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="js/sync.js"></script>
+  <script>
+    let checkinMap = null;
+    let checkinMarker = null;
+    let checkinPos = { lat: 14.0182, lng: 99.9584 };
+
+    function initCheckinMap() {
+      if (!checkinMap) {
+        checkinMap = L.map('checkin-map').setView([14.0182, 99.9584], 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(checkinMap);
+        setTimeout(() => checkinMap.invalidateSize(), 500);
+      }
+
+      const locStatus = document.getElementById('loc-status');
+
+      if (navigator.geolocation) {
+        locStatus.textContent = '📍 กำลังขอตำแหน่งของคุณ...';
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            checkinPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            updateMarker();
+            checkinMap.setView([checkinPos.lat, checkinPos.lng], 15);
+            locStatus.textContent = '✅ ปักหมุดที่ตำแหน่งปัจจุบันของคุณแล้ว (สามารถเลื่อนหมุดเพื่อแก้ไขได้)';
+          },
+          (err) => {
+            locStatus.textContent = '⚠️ ไม่สามารถดึงตำแหน่งได้ (คุณสามารถเลื่อนหมุดเองได้)';
+            checkinMap.setView([checkinPos.lat, checkinPos.lng], 13);
+            updateMarker();
+          },
+          { enableHighAccuracy: true, timeout: 5000 }
+        );
+      } else {
+        locStatus.textContent = '⚠️ เบราว์เซอร์ไม่รองรับการดึงตำแหน่ง โปรดเลื่อนหมุดเอง';
+        checkinMap.setView([checkinPos.lat, checkinPos.lng], 13);
+        updateMarker();
+      }
+    }
+
+    function updateMarker() {
+      if (checkinMarker) {
+        checkinMarker.setLatLng([checkinPos.lat, checkinPos.lng]);
+      } else {
+        checkinMarker = L.marker([checkinPos.lat, checkinPos.lng], { draggable: true }).addTo(checkinMap);
+        checkinMarker.on('dragend', function (e) {
+          const pos = checkinMarker.getLatLng();
+          checkinPos = { lat: pos.lat, lng: pos.lng };
+          document.getElementById('loc-status').textContent = '📍 เลือกตำแหน่งใหม่แล้ว';
+        });
+      }
+    }
+
+    // ── INIT ──
+    document.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('auto') === 'caller' && !sessionStorage.getItem('ems_user')) {
+        sessionStorage.setItem('ems_user', JSON.stringify({ username: 'caller', name: 'ผู้แจ้งเหตุ (Caller)', role: 'caller' }));
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
+      const user = JSON.parse(sessionStorage.getItem('ems_user') || '{}');
+      if (!user.username) { window.location.href = 'index.html'; return; }
+
+      if (user.role !== 'caller') {
+        alert('คุณไม่มีสิทธิ์เข้าถึงหน้าแจ้งเหตุ');
+        window.location.href = user.role === 'operator' ? 'checkin.html' : 'map.html';
+        return;
+      }
+
+      document.getElementById('user-name-display').textContent = user.name || user.username;
+
+      SyncManager.init((data) => {});
+      initCheckinMap();
+    });
+
+    function checkForm() {
+      const phone = document.getElementById('inp-phone').value.trim();
+      document.getElementById('btn-submit').disabled = !phone;
+    }
+
+    // ── REPORT ──
+    async function doReport() {
+      const btn = document.getElementById('btn-submit');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spin">⏳</span> กำลังบันทึก…';
+
+      try {
+        const phone = document.getElementById('inp-phone').value.trim();
+        const inc = {
+          lat: checkinPos.lat,
+          lng: checkinPos.lng,
+          name: 'ผู้แจ้งเหตุฉุกเฉิน',
+          address: 'รับแจ้งผ่านระบบแจ้งเหตุ',
+          phone: phone,
+          time: Date.now()
+        };
+
+        await SyncManager.saveIncident(inc);
+
+        // ✅ Show success
+        document.getElementById('step-1').style.display = 'none';
+        document.getElementById('step-ok').style.display = 'flex';
+
+      } catch (e) {
+        console.error('[Report] Sync error:', e);
+        btn.disabled = false;
+        btn.innerHTML = 'แจ้งเหตุฉุกเฉิน';
+        const msg = e?.message || 'ไม่สามารถบันทึกได้';
+        showToast(`❌ Sync Error: ${msg}`);
+      }
+    }
+
+    function resetForm() {
+      document.getElementById('inp-phone').value = '';
+      document.getElementById('btn-submit').disabled = true;
+      document.getElementById('btn-submit').innerHTML = 'แจ้งเหตุฉุกเฉิน';
+      document.getElementById('step-1').style.display = 'block';
+      document.getElementById('step-ok').style.display = 'none';
+      setTimeout(() => checkinMap.invalidateSize(), 500);
+    }
+
+    async function logout() {
+      sessionStorage.clear();
+      window.location.href = 'index.html';
+    }
+
+    function showToast(msg) {
+      const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => t.classList.add('show'), 10);
+      setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3000);
+    }
+  </script>
+</body>
+
+</html>

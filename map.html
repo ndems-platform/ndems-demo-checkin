@@ -1,316 +1,389 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NDEMS – แผนที่ติดตามรถฉุกเฉิน</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a3a6c'/><text y='52%' x='50%' dominant-baseline='central' text-anchor='middle' font-size='60'>📍</text></svg>">
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a3a6c'/><text y='52%' x='50%' dominant-baseline='central' text-anchor='middle' font-size='60'>📍</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="css/map.css" />
 </head>
+
 <body>
 
-<!-- ===== TOP HUD ===== -->
-<header class="map-hud">
-  <div class="hud-left">
-    <div class="hud-logo-wrap">
-      <img src="niems.png" alt="NIEMS" class="hud-logo" onerror="this.style.display='none'" />
-    </div>
-    <div class="hud-brand">
-      <div class="hud-title">NDEMS <span class="hud-accent">•</span> ระบบติดตามรถฉุกเฉิน <span style="background:#e63946;color:white;padding:2px 6px;border-radius:4px;font-size:0.7rem;vertical-align:middle;margin-left:4px;">DEMO</span></div>
-      <div class="hud-subtitle">National Digital Emergency Medical Services</div>
-    </div>
-  </div>
-
-  <div class="hud-center">
-    <div class="hud-stats">
-      <div class="stat-item">
-        <div class="stat-num" id="stat-total">0</div>
-        <div class="stat-label">ชุดปฏิบัติการ</div>
+  <!-- ===== TOP HUD ===== -->
+  <header class="map-hud">
+    <div class="hud-left">
+      <div class="hud-logo-wrap">
+        <img src="niems.png" alt="NIEMS" class="hud-logo" onerror="this.style.display='none'" />
       </div>
-      <div class="stat-divider"></div>
-      <div class="stat-item">
-        <div class="stat-num als" id="stat-als">0</div>
-        <div class="stat-label">ALS</div>
-      </div>
-      <div class="stat-divider"></div>
-      <div class="stat-item">
-        <div class="stat-num" id="stat-ops">0</div>
-        <div class="stat-label">ผู้ปฏิบัติการ</div>
+      <div class="hud-brand">
+        <div class="hud-title">NDEMS <span class="hud-accent">•</span> ระบบติดตามรถฉุกเฉิน <span
+            style="background:#e63946;color:white;padding:2px 6px;border-radius:4px;font-size:0.7rem;vertical-align:middle;margin-left:4px;">DEMO</span>
+        </div>
+        <div class="hud-subtitle">National Digital Emergency Medical Services</div>
       </div>
     </div>
-  </div>
 
-  <div class="hud-right">
-    <div class="live-badge">
-      <span class="live-dot"></span>
-      <span class="live-text">LIVE</span>
+    <div class="hud-center">
+      <div class="hud-stats">
+        <div class="stat-item">
+          <div class="stat-num" id="stat-total">0</div>
+          <div class="stat-label">ชุดปฏิบัติการ</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <div class="stat-num als" id="stat-als">0</div>
+          <div class="stat-label">ALS</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <div class="stat-num" id="stat-ops">0</div>
+          <div class="stat-label">ผู้ปฏิบัติการ</div>
+        </div>
+      </div>
     </div>
-    <div style="margin-right: 15px;">
-      <div class="hud-clock" id="hud-clock">--:--:--</div>
-      <div class="hud-date" id="hud-date">--</div>
+
+    <div class="hud-right">
+      <button onclick="checkoutAll()" id="btn-hud-co"
+        style="background:rgba(230,57,70,0.15); color:#e63946; border:1px solid rgba(230,57,70,0.4); border-radius:50px; padding:0.25rem 0.75rem; font-size:0.7rem; font-weight:700; cursor:pointer; margin-right: 15px; display:none;">Checkout
+        All</button>
+      <div class="live-badge">
+        <span class="live-dot"></span>
+        <span class="live-text">LIVE</span>
+      </div>
+      <div style="margin-right: 15px;">
+        <div class="hud-clock" id="hud-clock">--:--:--</div>
+        <div class="hud-date" id="hud-date">--</div>
+      </div>
+      <button class="btn-logout-map" onclick="logoutMap()"
+        style="background:#e63946;color:white;border:none;padding:6px 12px;border-radius:4px;font-family:inherit;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:4px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        ออก
+      </button>
     </div>
-    <button class="btn-logout-map" onclick="logoutMap()" style="background:#e63946;color:white;border:none;padding:6px 12px;border-radius:4px;font-family:inherit;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:4px;">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-      ออก
-    </button>
-  </div>
-</header>
+  </header>
 
-<!-- ===== MAP CONTAINER ===== -->
-<div id="map"></div>
+  <!-- ===== MAP CONTAINER ===== -->
+  <div id="map"></div>
 
-<!-- ===== SIDE PANEL ===== -->
-<aside class="side-panel" id="side-panel">
-  <div class="panel-header" style="flex-wrap: wrap;">
-    <div style="display:flex; align-items:center; gap:0.5rem;">
-      <svg viewBox="0 0 24 24" fill="none" style="width:18px;height:18px;color:#f4a261"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" fill="currentColor"/></svg>
-      ชุดปฏิบัติการ
+  <!-- ===== SIDE PANEL ===== -->
+  <aside class="side-panel" id="side-panel">
+    <div class="panel-header" style="flex-wrap: wrap;">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <svg viewBox="0 0 24 24" fill="none" style="width:18px;height:18px;color:#f4a261">
+          <path
+            d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"
+            fill="currentColor" />
+        </svg>
+        ชุดปฏิบัติการ
+      </div>
+      <div style="margin-left:auto; display:flex; gap:0.4rem; align-items:center;">
+        <span class="incident-badge" id="incident-badge" title="จุดเกิดเหตุ" style="margin-left:0;">🔴
+          เหตุฉุกเฉิน</span>
+        <button onclick="checkoutAll()"
+          style="background:rgba(230,57,70,0.15); color:#e63946; border:1px solid rgba(230,57,70,0.4); border-radius:50px; padding:0.15rem 0.55rem; font-size:0.62rem; font-weight:700; cursor:pointer; white-space:nowrap;">Checkout
+          All</button>
+      </div>
     </div>
-    <div style="margin-left:auto; display:flex; gap:0.4rem; align-items:center;">
-      <span class="incident-badge" id="incident-badge" title="จุดเกิดเหตุ" style="margin-left:0;">🔴 เหตุฉุกเฉิน</span>
-      <button onclick="checkoutAll()" style="background:rgba(230,57,70,0.15); color:#e63946; border:1px solid rgba(230,57,70,0.4); border-radius:50px; padding:0.15rem 0.55rem; font-size:0.62rem; font-weight:700; cursor:pointer; white-space:nowrap;">Checkout All</button>
+    <div class="panel-list" id="panel-list">
+      <div class="panel-empty" id="panel-empty">
+        <div class="empty-icon">🚑</div>
+        <p>ยังไม่มีชุดปฏิบัติการ<br>Check-in</p>
+      </div>
+    </div>
+    
+    <!-- ===== INCIDENT INFO PANEL (Moved to Sidebar Bottom) ===== -->
+    <div class="incident-info-bar" id="incident-info-bar">
+      <div style="display:flex; flex-direction:column; gap:6px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; align-items:flex-start;">
+        <span id="inc-label">📍 จุดเกิดเหตุ: กำลังโหลด…</span>
+        <span class="inc-dist" id="inc-dist" style="display:none;"></span>
+      </div>
+      <button id="btn-close-inc" class="btn-end-mission" onclick="closeIncident()" style="width:100%; justify-content:center; margin-top:0.8rem;">
+        <svg viewBox="0 0 24 24" fill="none" width="16" height="16" style="margin-top:-1px;">
+          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
+        </svg>
+        จบภารกิจ
+      </button>
+    </div>
+  </aside>
+
+  <!-- ===== TOGGLE PANEL BTN ===== -->
+  <button class="panel-toggle" id="panel-toggle" onclick="togglePanel()">
+    <svg viewBox="0 0 24 24" fill="none">
+      <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" fill="currentColor" />
+    </svg>
+  </button>
+
+  <!-- ===== TOGGLE PANEL BTN ===== -->
+
+  <!-- ===== SYNC ERROR BANNER ===== -->
+  <div class="firebase-error" id="sync-error" style="display:none;">
+    ⚠️ ไม่สามารถเชื่อมต่อระบบ Sync (MQTT) ได้ — ตรวจสอบ Network
+  </div>
+
+  <!-- ===== CHECKIN POPUP ===== -->
+  <div class="checkin-popup checkin-style" id="checkin-popup" style="display:none;">
+    <div class="popup-icon">🚑</div>
+    <div class="popup-content">
+      <div class="popup-title" id="popup-title">Check-in สำเร็จ!</div>
+      <div class="popup-sub" id="popup-sub">—</div>
     </div>
   </div>
-  <div class="panel-list" id="panel-list">
-    <div class="panel-empty" id="panel-empty">
-      <div class="empty-icon">🚑</div>
-      <p>ยังไม่มีชุดปฏิบัติการ<br>Check-in บนมือถือ</p>
+
+  <!-- ===== CHECKOUT POPUP ===== -->
+  <div class="checkin-popup checkout-style" id="checkout-popup" style="display:none;">
+    <div class="popup-icon">🔴</div>
+    <div class="popup-content">
+      <div class="popup-title" id="checkout-title">Check-out สำเร็จ!</div>
+      <div class="popup-sub" id="checkout-sub">—</div>
     </div>
   </div>
 
-  <!-- QR Code for mobile checkin -->
-  <div class="qr-section">
-    <div class="qr-label">📱 กดหรือ Scan เพื่อ Check-in</div>
-    <div id="qr-container" class="qr-box" title="คลิกเพื่อเปิดหน้า Check-in"></div>
-  </div>
-</aside>
+  <!-- ===== LEAFLET + QR + MQTT ===== -->
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="js/sync.js"></script>
 
-<!-- ===== TOGGLE PANEL BTN ===== -->
-<button class="panel-toggle" id="panel-toggle" onclick="togglePanel()">
-  <svg viewBox="0 0 24 24" fill="none"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" fill="currentColor"/></svg>
-</button>
+  <script>
+    // =====================================================
+    //  GLOBALS
+    // =====================================================
+    let checkins = {};
+    let markers = {};
+    let mapInstance;
+    let panelOpen = true;
+    let lastKnownIds = new Set();
+    let incidentPoint = null;
+    let incidentMarker = null;
+    let incidentCircle = null;
+    let activeRoute = null;
+    let activeRouteId = null;
+    let isAdmin = false;
 
-<!-- ===== INCIDENT INFO PANEL ===== -->
-<div class="incident-info-bar" id="incident-info-bar">
-  <span class="inc-pulse"></span>
-  <span id="inc-label">📍 จุดเกิดเหตุ: กำลังโหลด…</span>
-  <span class="inc-dist" id="inc-dist"></span>
-</div>
+    // =====================================================
+    //  LEAFLET MAP INIT
+    // =====================================================
+    function initMap() {
+      mapInstance = L.map('map', {
+        center: [13.0, 101.5],
+        zoom: 6,
+        zoomControl: true,
+        attributionControl: true,
+        minZoom: 5,
+        maxZoom: 18,
+      });
 
-<!-- ===== SYNC ERROR BANNER ===== -->
-<div class="firebase-error" id="sync-error" style="display:none;">
-  ⚠️ ไม่สามารถเชื่อมต่อระบบ Sync (MQTT) ได้ — ตรวจสอบ Network
-</div>
+      // OSM tiles — map เดิม
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>',
+        maxZoom: 19,
+      }).addTo(mapInstance);
 
-<!-- ===== CHECKIN POPUP ===== -->
-<div class="checkin-popup checkin-style" id="checkin-popup" style="display:none;">
-  <div class="popup-icon">🚑</div>
-  <div class="popup-content">
-    <div class="popup-title" id="popup-title">Check-in สำเร็จ!</div>
-    <div class="popup-sub" id="popup-sub">—</div>
-  </div>
-</div>
+      // Thailand mask — โหลด GeoJSON จังหวัดแล้วสร้าง mask ด้วย Turf.js
+      addThailandMask();
+    }
 
-<!-- ===== CHECKOUT POPUP ===== -->
-<div class="checkin-popup checkout-style" id="checkout-popup" style="display:none;">
-  <div class="popup-icon">🔴</div>
-  <div class="popup-content">
-    <div class="popup-title" id="checkout-title">Check-out สำเร็จ!</div>
-    <div class="popup-sub" id="checkout-sub">—</div>
-  </div>
-</div>
+    // =====================================================
+    //  THAILAND MASK — ใช้ GeoJSON จังหวัด + Turf.js difference
+    //  ให้พื้นที่นอกไทยจาง (white overlay) ขอบตรงตามแผนที่จริง
+    // =====================================================
+    function addThailandMask() {
+      const GEOJSON_URL = 'https://raw.githubusercontent.com/chingchai/OpenGISData-Thailand/master/provinces.geojson';
 
-<!-- ===== LEAFLET + QR + MQTT ===== -->
-<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-<script src="js/sync.js"></script>
+      fetch(GEOJSON_URL)
+        .then(r => r.json())
+        .then(data => {
+          // รวมทุกจังหวัดเป็น union เดียว
+          let union = data.features[0];
+          for (let i = 1; i < data.features.length; i++) {
+            union = turf.union(union, data.features[i]);
+          }
 
-<script>
-// =====================================================
-//  GLOBALS
-// =====================================================
-let checkins = {};
-let markers  = {};
-let mapInstance;
-let panelOpen = true;
-let lastKnownIds = new Set();
-let incidentPoint = null;
-let incidentMarker = null;
-let incidentCircle = null;
-let activeRoute = null;
-let activeRouteId = null;
-let isAdmin = false;
+          // World polygon ลบด้วยขอบไทย → ได้พื้นที่นอกไทย
+          const world = turf.polygon([[
+            [-180, 90], [-180, -90], [180, -90], [180, 90], [-180, 90]
+          ]]);
+          const mask = turf.difference(world, union);
 
-// =====================================================
-//  LEAFLET MAP INIT
-// =====================================================
-function initMap() {
-  mapInstance = L.map('map', {
-    center: [13.0, 101.5],
-    zoom: 6,
-    zoomControl: true,
-    attributionControl: true,
-    minZoom: 5,
-    maxZoom: 18,
-  });
+          // เพิ่ม mask (white fade) นอกประเทศไทย
+          L.geoJSON(mask, {
+            style: {
+              color: 'transparent',
+              fillColor: '#ffffff',
+              fillOpacity: 0.82,
+              weight: 0,
+              interactive: false,
+            }
+          }).addTo(mapInstance);
 
-  // OSM tiles — map เดิม
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>',
-    maxZoom: 19,
-  }).addTo(mapInstance);
+          // เส้นขอบจังหวัดภายในไทย
+          L.geoJSON(data, {
+            style: {
+              color: '#94a3b8',
+              weight: 0.8,
+              opacity: 0.5,
+              fillOpacity: 0,
+              interactive: false,
+            }
+          }).addTo(mapInstance);
+        })
+        .catch(e => console.warn('[Mask] GeoJSON load failed, using bbox fallback', e));
+    }
 
-  // Thailand mask — โหลด GeoJSON จังหวัดแล้วสร้าง mask ด้วย Turf.js
-  addThailandMask();
-}
+    // =====================================================
+    //  INCIDENT POINT — โหลดจาก MQTT, สร้างถ้าไม่มี
+    // =====================================================
+    async function initIncident() {
+      let inc = await SyncManager.getIncident();
 
-// =====================================================
-//  THAILAND MASK — ใช้ GeoJSON จังหวัด + Turf.js difference
-//  ให้พื้นที่นอกไทยจาง (white overlay) ขอบตรงตามแผนที่จริง
-// =====================================================
-function addThailandMask() {
-  const GEOJSON_URL = 'https://raw.githubusercontent.com/chingchai/OpenGISData-Thailand/master/provinces.geojson';
+      if (!inc) {
+        inc = await new Promise(resolve => {
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              pos => {
+                resolve({
+                  lat: +(pos.coords.latitude).toFixed(6),
+                  lng: +(pos.coords.longitude).toFixed(6),
+                  name: 'จุดเกิดเหตุ (พิกัดปัจจุบัน)',
+                  address: 'พิกัดจากอุปกรณ์',
+                  phone: ''
+                });
+              },
+              err => {
+                console.warn('Geolocation error:', err);
+                resolve(null);
+              },
+              { enableHighAccuracy: true, timeout: 5000 }
+            );
+          } else {
+            resolve(null);
+          }
+        });
 
-  fetch(GEOJSON_URL)
-    .then(r => r.json())
-    .then(data => {
-      // รวมทุกจังหวัดเป็น union เดียว
-      let union = data.features[0];
-      for (let i = 1; i < data.features.length; i++) {
-        union = turf.union(union, data.features[i]);
+        if (!inc) {
+          const baseLat = 14.0182;
+          const baseLng = 99.9584;
+          const maxR = 0.065, minR = 0.025;
+          const angle = Math.random() * Math.PI * 2;
+          const dist = minR + Math.random() * (maxR - minR);
+          inc = {
+            lat: +(baseLat + dist * Math.sin(angle)).toFixed(6),
+            lng: +(baseLng + dist * Math.cos(angle)).toFixed(6),
+            name: 'จุดเกิดเหตุ (สุ่ม)',
+            address: 'ถ.กำแพงแสน อ.กำแพงแสน จ.นครปฐม',
+          };
+        }
+        await SyncManager.saveIncident(inc);
       }
 
-      // World polygon ลบด้วยขอบไทย → ได้พื้นที่นอกไทย
-      const world = turf.polygon([[
-        [-180, 90], [-180, -90], [180, -90], [180, 90], [-180, 90]
-      ]]);
-      const mask = turf.difference(world, union);
+      incidentPoint = inc;
+      drawIncident();
+      updateIncidentBar();
+      if (Object.keys(checkins).length > 0) updatePanel(checkins);
 
-      // เพิ่ม mask (white fade) นอกประเทศไทย
-      L.geoJSON(mask, {
-        style: {
-          color: 'transparent',
-          fillColor: '#ffffff',
-          fillOpacity: 0.82,
-          weight: 0,
-          interactive: false,
-        }
+      // ฟังการเปลี่ยนแปลงแบบ realtime
+      SyncManager.watchIncident((newInc) => {
+        if (!newInc) return;
+        incidentPoint = newInc;
+        drawIncident();
+        updateIncidentBar();
+        if (Object.keys(checkins).length > 0) updatePanel(checkins);
+      });
+    }
+
+    function drawIncident() {
+      if (incidentMarker) { mapInstance.removeLayer(incidentMarker); incidentMarker = null; }
+      if (incidentCircle) { mapInstance.removeLayer(incidentCircle); incidentCircle = null; }
+
+      if (!incidentPoint) {
+        if (activeRoute) clearRoute();
+        return;
+      }
+
+      const { lat, lng } = incidentPoint;
+
+      incidentCircle = L.circle([lat, lng], {
+        radius: 10000,
+        color: '#e63946',
+        fillColor: '#e63946',
+        fillOpacity: 0.05,
+        weight: 2,
+        dashArray: '6 4',
       }).addTo(mapInstance);
 
-      // เส้นขอบจังหวัดภายในไทย
-      L.geoJSON(data, {
-        style: {
-          color: '#94a3b8',
-          weight: 0.8,
-          opacity: 0.5,
-          fillOpacity: 0,
-          interactive: false,
-        }
-      }).addTo(mapInstance);
-    })
-    .catch(e => console.warn('[Mask] GeoJSON load failed, using bbox fallback', e));
-}
-
-// =====================================================
-//  INCIDENT POINT — โหลดจาก MQTT, สร้างถ้าไม่มี
-// =====================================================
-async function initIncident() {
-  let inc = await SyncManager.getIncident();
-
-  if (!inc) {
-    const baseLat = 14.0182;
-    const baseLng = 99.9584;
-    const maxR = 0.065, minR = 0.025;
-    const angle = Math.random() * Math.PI * 2;
-    const dist  = minR + Math.random() * (maxR - minR);
-    inc = {
-      lat: +(baseLat + dist * Math.sin(angle)).toFixed(6),
-      lng: +(baseLng + dist * Math.cos(angle)).toFixed(6),
-      name: 'จุดเกิดเหตุ',
-      address: 'ถ.กำแพงแสน อ.กำแพงแสน จ.นครปฐม',
-    };
-    await SyncManager.saveIncident(inc);
-  }
-
-  incidentPoint = inc;
-  drawIncident();
-  updateIncidentBar();
-  if (Object.keys(checkins).length > 0) updatePanel(checkins);
-
-  // ฟังการเปลี่ยนแปลงแบบ realtime
-  SyncManager.watchIncident((newInc) => {
-    if (!newInc) return;
-    incidentPoint = newInc;
-    drawIncident();
-    updateIncidentBar();
-    if (Object.keys(checkins).length > 0) updatePanel(checkins);
-  });
-}
-
-function drawIncident() {
-  if (!incidentPoint) return;
-
-  if (incidentMarker) mapInstance.removeLayer(incidentMarker);
-  if (incidentCircle) mapInstance.removeLayer(incidentCircle);
-
-  const { lat, lng } = incidentPoint;
-
-  incidentCircle = L.circle([lat, lng], {
-    radius: 10000,
-    color: '#e63946',
-    fillColor: '#e63946',
-    fillOpacity: 0.05,
-    weight: 2,
-    dashArray: '6 4',
-  }).addTo(mapInstance);
-
-  const incIcon = L.divIcon({
-    html: `<div class="inc-marker-wrap">
+      const incIcon = L.divIcon({
+        html: `<div class="inc-marker-wrap">
              <div class="inc-marker-pin"></div>
              <div class="inc-marker-label">จุดเกิดเหตุ</div>
            </div>`,
-    iconSize: [50, 50],
-    iconAnchor: [25, 25],
-    popupAnchor: [0, -25],
-    className: '',
-  });
+        iconSize: [50, 50],
+        iconAnchor: [25, 25],
+        popupAnchor: [0, -25],
+        className: '',
+      });
 
-  incidentMarker = L.marker([lat, lng], { icon: incIcon, zIndexOffset: 1000 })
-    .addTo(mapInstance)
-    .bindPopup(`
+      incidentMarker = L.marker([lat, lng], { icon: incIcon, zIndexOffset: 1000 })
+        .addTo(mapInstance)
+        .bindPopup(`
       <div class="popup-inner">
-        <div class="popup-vehicle-id" style="color:#e63946;">🚨 จุดเกิดเหตุฉุกเฉิน</div>
+        <div class="popup-vehicle-id" style="color:#e63946;">🚨 ${incidentPoint.name || 'จุดเกิดเหตุฉุกเฉิน'}</div>
         <table class="popup-table">
           <tr><td>พิกัด</td><td><b>${lat.toFixed(4)}, ${lng.toFixed(4)}</b></td></tr>
           <tr><td>ที่อยู่</td><td><b>${incidentPoint.address}</b></td></tr>
+          ${incidentPoint.phone ? `<tr><td>เบอร์โทร</td><td><b>${incidentPoint.phone}</b></td></tr>` : ''}
           <tr><td>รัศมีครอบคลุม</td><td><b>10 กม.</b></td></tr>
         </table>
       </div>`, { maxWidth: 260, className: 'custom-popup' });
 
-  mapInstance.flyTo([lat, lng], 11, { duration: 1.2 });
-}
+      mapInstance.flyTo([lat, lng], 11, { duration: 1.2 });
+    }
 
-function updateIncidentBar() {
-  if (!incidentPoint) return;
-  document.getElementById('inc-label').textContent =
-    `📍 จุดเกิดเหตุ: ${incidentPoint.address}  (${incidentPoint.lat.toFixed(4)}, ${incidentPoint.lng.toFixed(4)})`;
-}
+    function updateIncidentBar() {
+      if (!incidentPoint) {
+        document.getElementById('inc-label').textContent = '✅ ไม่มีเหตุฉุกเฉินในขณะนี้';
+        document.getElementById('inc-pulse-dot').style.display = 'none';
+        document.getElementById('btn-close-inc').style.display = 'none';
+        document.getElementById('incident-badge').style.display = 'none';
+        return;
+      }
+      document.getElementById('inc-pulse-dot').style.display = 'inline-block';
+      document.getElementById('btn-close-inc').style.display = 'inline-block';
+      document.getElementById('incident-badge').style.display = 'inline-block';
 
-// =====================================================
-//  AMBULANCE MARKER SVG
-// =====================================================
-function makeAmbulanceIcon(plate, level, index) {
-  let color = '#2a5298';
-  if (level === 'BLS') color = '#f4a261';
-  else if (level === 'ALS') color = '#e63946';
-  else if (level === 'CLS') color = '#2d9d78';
+      let phoneHtml = incidentPoint.phone ? ` <span style="color:var(--gold); font-weight:700; display:block; margin-top:4px;">📞 ${incidentPoint.phone}</span>` : '';
+      document.getElementById('inc-label').innerHTML =
+        `<div style="color:var(--accent); font-weight:700; margin-bottom:4px; display:flex; align-items:center; gap:6px;"><span class="inc-pulse" id="inc-pulse-dot" style="display:inline-block;"></span>🚨 ${incidentPoint.name || 'จุดเกิดเหตุ'}</div><div style="color:rgba(255,255,255,0.7); font-weight:400; font-size:0.9em; white-space:normal; line-height:1.4;">${incidentPoint.address}</div>${phoneHtml}`;
+    }
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 56 70">
+    async function closeIncident() {
+      if (!confirm('ยืนยันการปิดงาน และล้างจุดเกิดเหตุบนแผนที่?')) return;
+      try {
+        await SyncManager.saveIncident(null);
+      } catch (e) { console.error('Failed to clear incident', e); }
+    }
+
+    // =====================================================
+    //  AMBULANCE MARKER SVG
+    // =====================================================
+    function makeAmbulanceIcon(plate, level, index) {
+      let color = '#2a5298';
+      if (level === 'BLS') color = '#f4a261';
+      else if (level === 'ALS') color = '#e63946';
+      else if (level === 'CLS') color = '#2d9d78';
+
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 56 70">
     <ellipse cx="28" cy="66" rx="14" ry="4" fill="rgba(0,0,0,0.22)"/>
     <path d="M28 3C18 3 10 11 10 21C10 35.5 28 62 28 62C28 62 46 35.5 46 21C46 11 38 3 28 3Z"
       fill="${color}" stroke="white" stroke-width="2.5"/>
@@ -326,127 +399,128 @@ function makeAmbulanceIcon(plate, level, index) {
     <rect x="36" y="18" width="3.5" height="2" rx="1" fill="rgba(255,220,80,0.9)"/>
   </svg>`;
 
-  return L.divIcon({
-    html: `<div class="amb-marker-wrap">
+      return L.divIcon({
+        html: `<div class="amb-marker-wrap">
              <div class="amb-svg-wrap">${svg}</div>
              <div class="amb-label" style="background:${color}">${plate}</div>
            </div>`,
-    iconSize: [52, 58],
-    iconAnchor: [26, 48],
-    popupAnchor: [0, -48],
-    className: '',
-  });
-}
-
-// =====================================================
-//  ROUTE: vehicle → incident
-// =====================================================
-async function drawRoute(checkinId, vLat, vLng) {
-  clearRoute();
-  if (!incidentPoint) return;
-
-  const iLat = incidentPoint.lat;
-  const iLng = incidentPoint.lng;
-
-  let routeLayer = null;
-  try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${vLng},${vLat};${iLng},${iLat}?overview=full&geometries=geojson`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-    if (res.ok) {
-      const data = await res.json();
-      const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-      routeLayer = L.polyline(coords, {
-        color: '#1a73e8',
-        weight: 6,
-        opacity: 0.9,
-        dashArray: '',
-        className: 'route-line',
-      }).addTo(mapInstance);
-
-      const dist = (data.routes[0].distance / 1000).toFixed(1);
-      const dur  = Math.round(data.routes[0].duration / 60);
-      routeLayer.bindPopup(`<div class="popup-inner"><b>🛣 เส้นทาง</b><br>ระยะ ${dist} กม. • ประมาณ ${dur} นาที</div>`, { className:'custom-popup' });
-      routeLayer.bindTooltip(`ประมาณ ${dur} นาที (${dist} กม.)`, { permanent: true, direction: 'center', className: 'route-time-tooltip' });
+        iconSize: [52, 58],
+        iconAnchor: [26, 48],
+        popupAnchor: [0, -48],
+        className: '',
+      });
     }
-  } catch(e) {
-    console.warn('OSRM failed, fallback straight line', e);
-  }
 
-  if (!routeLayer) {
-    routeLayer = L.polyline([[vLat, vLng], [iLat, iLng]], {
-      color: '#1a73e8',
-      weight: 5,
-      opacity: 0.8,
-      dashArray: '12 8',
-      className: 'route-line',
-    }).addTo(mapInstance);
-  }
+    // =====================================================
+    //  ROUTE: vehicle → incident
+    // =====================================================
+    async function drawRoute(checkinId, vLat, vLng) {
+      clearRoute();
+      if (!incidentPoint) return;
 
-  activeRoute = routeLayer;
-  activeRouteId = checkinId;
-  mapInstance.fitBounds([[vLat, vLng], [iLat, iLng]], { padding: [60, 60] });
-}
+      const iLat = incidentPoint.lat;
+      const iLng = incidentPoint.lng;
 
-function clearRoute() {
-  if (activeRoute) { mapInstance.removeLayer(activeRoute); activeRoute = null; }
-  activeRouteId = null;
-}
+      let routeLayer = null;
+      try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${vLng},${vLat};${iLng},${iLat}?overview=full&geometries=geojson`;
+        const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+        if (res.ok) {
+          const data = await res.json();
+          const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+          routeLayer = L.polyline(coords, {
+            color: '#1a73e8',
+            weight: 6,
+            opacity: 0.9,
+            dashArray: '',
+            className: 'route-line',
+          }).addTo(mapInstance);
 
-// =====================================================
-//  UPDATE MAP FROM SYNC DATA
-// =====================================================
-function updateMap(data) {
-  const currentIds = new Set(Object.keys(data));
-
-  Object.keys(markers).forEach(id => {
-    if (!currentIds.has(id)) {
-      const vInfo = checkins[id]?.vehicle;
-      if (lastKnownIds.has(id) && vInfo) {
-        showCheckoutPopup(vInfo);
+          const dist = (data.routes[0].distance / 1000).toFixed(1);
+          const dur = Math.round(data.routes[0].duration / 60);
+          routeLayer.bindPopup(`<div class="popup-inner"><b>🛣 เส้นทาง</b><br>ระยะ ${dist} กม. • ประมาณ ${dur} นาที</div>`, { className: 'custom-popup' });
+          routeLayer.bindTooltip(`ประมาณ ${dur} นาที (${dist} กม.)`, { permanent: true, direction: 'center', className: 'route-time-tooltip' });
+        }
+      } catch (e) {
+        console.warn('OSRM failed, fallback straight line', e);
       }
-      mapInstance.removeLayer(markers[id]);
-      delete markers[id];
-    }
-  });
 
-  let totalOps = 0, alsCount = 0, idx = 0;
-
-  currentIds.forEach(id => {
-    const c = data[id];
-    const v = c.vehicle;
-    totalOps += (c.operators || []).length;
-    if (v.level === 'ALS') alsCount++;
-
-    if (!markers[id]) {
-      const icon = makeAmbulanceIcon(v.plate, v.level, idx);
-      const marker = L.marker([v.lat, v.lng], { icon })
-        .addTo(mapInstance)
-        .bindPopup(makePopupContent(c), { maxWidth: 270, className: 'custom-popup' });
-      markers[id] = marker;
-
-      if (!lastKnownIds.has(id)) {
-        showCheckinPopup(v);
-        marker.openPopup();
+      if (!routeLayer) {
+        routeLayer = L.polyline([[vLat, vLng], [iLat, iLng]], {
+          color: '#1a73e8',
+          weight: 5,
+          opacity: 0.8,
+          dashArray: '12 8',
+          className: 'route-line',
+        }).addTo(mapInstance);
       }
+
+      activeRoute = routeLayer;
+      activeRouteId = checkinId;
+      mapInstance.fitBounds([[vLat, vLng], [iLat, iLng]], { padding: [60, 60] });
     }
-    idx++;
-  });
 
-  lastKnownIds = currentIds;
-  checkins = data;
+    function clearRoute() {
+      if (activeRoute) { mapInstance.removeLayer(activeRoute); activeRoute = null; }
+      activeRouteId = null;
+    }
 
-  document.getElementById('stat-total').textContent = currentIds.size;
-  document.getElementById('stat-als').textContent   = alsCount;
-  document.getElementById('stat-ops').textContent   = totalOps;
+    // =====================================================
+    //  UPDATE MAP FROM SYNC DATA
+    // =====================================================
+    function updateMap(data) {
+      const currentIds = new Set(Object.keys(data));
 
-  updatePanel(data);
-}
+      Object.keys(markers).forEach(id => {
+        if (!currentIds.has(id)) {
+          const vInfo = checkins[id]?.vehicle;
+          if (lastKnownIds.has(id) && vInfo) {
+            showCheckoutPopup(vInfo);
+          }
+          mapInstance.removeLayer(markers[id]);
+          delete markers[id];
+          if (activeRouteId === id) clearRoute();
+        }
+      });
 
-function makePopupContent(c) {
-  const v = c.vehicle;
-  const ops = (c.operators || []).map(o => `<div class="popup-op">${o.avatar || '👤'} ${o.role}: ${o.name}</div>`).join('');
-  const t = new Date(c.checkinTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-  return `
+      let totalOps = 0, alsCount = 0, idx = 0;
+
+      currentIds.forEach(id => {
+        const c = data[id];
+        const v = c.vehicle;
+        totalOps += (c.operators || []).length;
+        if (v.level === 'ALS') alsCount++;
+
+        if (!markers[id]) {
+          const icon = makeAmbulanceIcon(v.plate, v.level, idx);
+          const marker = L.marker([v.lat, v.lng], { icon })
+            .addTo(mapInstance)
+            .bindPopup(makePopupContent(c), { maxWidth: 270, className: 'custom-popup' });
+          markers[id] = marker;
+
+          if (!lastKnownIds.has(id)) {
+            showCheckinPopup(v);
+            marker.openPopup();
+          }
+        }
+        idx++;
+      });
+
+      lastKnownIds = currentIds;
+      checkins = data;
+
+      document.getElementById('stat-total').textContent = currentIds.size;
+      document.getElementById('stat-als').textContent = alsCount;
+      document.getElementById('stat-ops').textContent = totalOps;
+
+      updatePanel(data);
+    }
+
+    function makePopupContent(c) {
+      const v = c.vehicle;
+      const ops = (c.operators || []).map(o => `<div class="popup-op">${o.avatar || '👤'} ${o.role}: ${o.name}</div>`).join('');
+      const t = new Date(c.checkinTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+      return `
     <div class="popup-inner">
       <div class="popup-vehicle-id">${v.id}</div>
       <table class="popup-table">
@@ -455,73 +529,74 @@ function makePopupContent(c) {
         <tr><td>ระดับ</td><td><span class="popup-als level-${v.level}">${v.level}</span></td></tr>
         <tr><td>Check-in</td><td>${t} น.</td></tr>
       </table>
-      <div class="popup-ops-label">ผู้ปฏิบัติการ (${(c.operators||[]).length} ท่าน)</div>
+      <div class="popup-ops-label">ผู้ปฏิบัติการ (${(c.operators || []).length} ท่าน)</div>
       <div class="popup-ops-list">${ops || 'ไม่มี'}</div>
+      <button class="btn-co" style="width:100%;margin-top:0.75rem;padding:0.4rem;font-size:0.75rem;border-radius:6px;" onclick="doCheckout('${c.checkinId}')">🔴 Check-out</button>
     </div>`;
-}
-
-// =====================================================
-//  ADMIN CHECKOUT — ลบจาก Sync
-// =====================================================
-function logoutMap() {
-  sessionStorage.clear();
-  window.location.href = 'index.html';
-}
-
-async function doCheckout(id) {
-  if (!confirm('ยืนยันการ Check-out ชุดปฏิบัติการนี้?')) return;
-  try {
-    await SyncManager.remove(String(id));
-    if (activeRouteId === id) clearRoute();
-  } catch(e) { console.error(e); }
-}
-
-async function checkoutAll() {
-  if (!confirm('ยืนยันการ Check-out ทุกชุดปฏิบัติการ?')) return;
-  try {
-    for (const id of Object.keys(checkins)) {
-      await SyncManager.remove(String(id));
     }
-    clearRoute();
-  } catch(e) { console.error(e); }
-}
 
-// =====================================================
-//  SIDE PANEL
-// =====================================================
-function updatePanel(data) {
-  const list  = document.getElementById('panel-list');
-  const empty = document.getElementById('panel-empty');
-  
-  let ids = Object.keys(data);
-  if (incidentPoint && typeof turf !== 'undefined') {
-    const iPoint = turf.point([incidentPoint.lng, incidentPoint.lat]);
-    ids.sort((a, b) => {
-      const pA = turf.point([data[a].vehicle.lng, data[a].vehicle.lat]);
-      const pB = turf.point([data[b].vehicle.lng, data[b].vehicle.lat]);
-      return turf.distance(iPoint, pA) - turf.distance(iPoint, pB);
-    });
-  }
+    // =====================================================
+    //  ADMIN CHECKOUT — ลบจาก Sync
+    // =====================================================
+    function logoutMap() {
+      sessionStorage.clear();
+      window.location.href = 'index.html';
+    }
 
-  if (ids.length === 0) {
-    empty.style.display = 'flex';
-    list.querySelectorAll('.vehicle-card').forEach(el => el.remove());
-    return;
-  }
-  empty.style.display = 'none';
-  list.querySelectorAll('.vehicle-card').forEach(el => el.remove());
+    async function doCheckout(id) {
+      if (!confirm('ยืนยันการ Check-out ชุดปฏิบัติการนี้?')) return;
+      try {
+        await SyncManager.remove(String(id));
+        if (activeRouteId === id) clearRoute();
+      } catch (e) { console.error(e); }
+    }
 
-  ids.forEach((id, idx) => {
-    const c = data[id];
-    const v = c.vehicle;
-    const t = new Date(c.checkinTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-    const card = document.createElement('div');
-    card.className = 'vehicle-card';
-    card.id = 'vc-' + id;
+    async function checkoutAll() {
+      if (!confirm('ยืนยันการ Check-out ทุกชุดปฏิบัติการ?')) return;
+      try {
+        for (const id of Object.keys(checkins)) {
+          await SyncManager.remove(String(id));
+        }
+        clearRoute();
+      } catch (e) { console.error(e); }
+    }
 
-    const isActive = activeRouteId === id;
+    // =====================================================
+    //  SIDE PANEL
+    // =====================================================
+    function updatePanel(data) {
+      const list = document.getElementById('panel-list');
+      const empty = document.getElementById('panel-empty');
 
-    card.innerHTML = `
+      let ids = Object.keys(data);
+      if (incidentPoint && typeof turf !== 'undefined') {
+        const iPoint = turf.point([incidentPoint.lng, incidentPoint.lat]);
+        ids.sort((a, b) => {
+          const pA = turf.point([data[a].vehicle.lng, data[a].vehicle.lat]);
+          const pB = turf.point([data[b].vehicle.lng, data[b].vehicle.lat]);
+          return turf.distance(iPoint, pA) - turf.distance(iPoint, pB);
+        });
+      }
+
+      if (ids.length === 0) {
+        empty.style.display = 'flex';
+        list.querySelectorAll('.vehicle-card').forEach(el => el.remove());
+        return;
+      }
+      empty.style.display = 'none';
+      list.querySelectorAll('.vehicle-card').forEach(el => el.remove());
+
+      ids.forEach((id, idx) => {
+        const c = data[id];
+        const v = c.vehicle;
+        const t = new Date(c.checkinTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        const card = document.createElement('div');
+        card.className = 'vehicle-card';
+        card.id = 'vc-' + id;
+
+        const isActive = activeRouteId === id;
+
+        card.innerHTML = `
       <div class="vc-top">
         <span class="vc-amb-icon">
           <svg viewBox="0 0 24 24" fill="none" width="26" height="26">
@@ -534,132 +609,103 @@ function updatePanel(data) {
         </div>
         <span class="vc-als level-${v.level}">${v.level}</span>
       </div>
-      <div class="vc-ops"><span>👥 ผู้ปฏิบัติการ: ${(c.operators||[]).length} ท่าน</span></div>
+      <div class="vc-ops"><span>👥 ผู้ปฏิบัติการ: ${(c.operators || []).length} ท่าน</span></div>
       <div class="vc-time">⏱ Check-in ${t} น.</div>
       <div class="vc-actions">
-        <button class="btn-route ${isActive?'active':''}" onclick="event.stopPropagation();handleRoute('${id}',${v.lat},${v.lng})">
+        <button class="btn-route ${isActive ? 'active' : ''}" onclick="event.stopPropagation();handleRoute('${id}',${v.lat},${v.lng})">
           ${isActive ? '✕ ยกเลิกสั่งการ' : '🗺 สั่งการ'}
         </button>
         <button class="btn-co" onclick="event.stopPropagation();doCheckout('${id}')">🔴 Check-out</button>
       </div>`;
 
-    card.onclick = () => {
-      mapInstance.flyTo([v.lat, v.lng], 14, { duration: 1 });
-      markers[id]?.openPopup();
-    };
-    list.appendChild(card);
-  });
-}
-
-function handleRoute(id, lat, lng) {
-  if (activeRouteId === id) {
-    clearRoute();
-    updatePanel(checkins);
-  } else {
-    drawRoute(id, lat, lng).then(() => updatePanel(checkins));
-  }
-}
-
-function togglePanel() {
-  panelOpen = !panelOpen;
-  document.getElementById('side-panel').classList.toggle('collapsed', !panelOpen);
-}
-
-// =====================================================
-//  CHECKIN / CHECKOUT POPUP NOTIFICATION
-// =====================================================
-function showCheckinPopup(v) {
-  const pop = document.getElementById('checkin-popup');
-  document.getElementById('popup-title').textContent = `Check-in สำเร็จ!`;
-  document.getElementById('popup-sub').textContent   = `${v.id} • ${v.plate} • ${v.level}`;
-  pop.style.display = 'flex';
-  pop.classList.add('show');
-  setTimeout(() => { pop.classList.remove('show'); setTimeout(() => { pop.style.display='none'; }, 500); }, 4000);
-}
-
-function showCheckoutPopup(v) {
-  const pop = document.getElementById('checkout-popup');
-  document.getElementById('checkout-sub').textContent = `${v.id} • ${v.plate} • ${v.level}`;
-  pop.style.display = 'flex';
-  pop.classList.add('show');
-  setTimeout(() => { pop.classList.remove('show'); setTimeout(() => { pop.style.display='none'; }, 500); }, 4000);
-}
-
-// =====================================================
-//  CLOCK
-// =====================================================
-function startClock() {
-  function tick() {
-    const now = new Date();
-    document.getElementById('hud-clock').textContent = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    document.getElementById('hud-date').textContent  = now.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
-  }
-  tick();
-  setInterval(tick, 1000);
-}
-
-// =====================================================
-//  QR CODE GENERATION
-// =====================================================
-function generateQR() {
-  const href = window.location.href;
-  const url  = href.includes('map.html')
-    ? href.replace('map.html', 'checkin.html?auto=operator')
-    : (href.replace(/\/?$/, '/') + 'checkin.html?auto=operator');
-
-  const container = document.getElementById('qr-container');
-  container.innerHTML = '';
-  container.onclick = () => window.open(url, '_blank');
-  container.style.cursor = 'pointer';
-
-  if (typeof QRCode !== 'undefined') {
-    try {
-      new QRCode(container, {
-        text: url,
-        width: 120,
-        height: 120,
-        colorDark: '#1a3a6c',
-        colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.M,
+        card.onclick = () => {
+          mapInstance.flyTo([v.lat, v.lng], 14, { duration: 1 });
+          markers[id]?.openPopup();
+        };
+        list.appendChild(card);
       });
-    } catch(e) {
-      container.innerHTML = `<div style="font-size:.7rem;word-break:break-all;color:#1a3a6c;padding:6px;">${url}</div>`;
     }
-  } else {
-    container.innerHTML = `<div style="font-size:.65rem;word-break:break-all;color:#1a3a6c;padding:6px;">${url}</div>`;
-  }
-}
 
-// =====================================================
-//  BOOT
-// =====================================================
-document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    const user = JSON.parse(sessionStorage.getItem('ems_user') || '{}');
-    if (!user.username) { window.location.href = 'index.html'; return; }
-    
-    if (user.role === 'operator') {
-      alert('คุณไม่มีสิทธิ์เข้าถึงหน้าแผนที่');
-      window.location.href = 'checkin.html';
-      return;
+    function handleRoute(id, lat, lng) {
+      if (activeRouteId === id) {
+        clearRoute();
+        updatePanel(checkins);
+      } else {
+        drawRoute(id, lat, lng).then(() => updatePanel(checkins));
+      }
     }
-    isAdmin = (user.role === 'admin');
-  } catch(e) {}
 
-  initMap();
-  startClock();
-  generateQR();
+    function togglePanel() {
+      panelOpen = !panelOpen;
+      document.getElementById('side-panel').classList.toggle('collapsed', !panelOpen);
+    }
 
-  try {
-    // เชื่อมต่อ Sync และฟัง checkins แบบ real-time
-    await SyncManager.init(updateMap);
-    // โหลด/สร้างจุดเกิดเหตุ
-    await initIncident();
-  } catch(e) {
-    console.error('[Map] Sync failed:', e);
-    document.getElementById('sync-error').style.display = 'block';
-  }
-});
-</script>
+    // =====================================================
+    //  CHECKIN / CHECKOUT POPUP NOTIFICATION
+    // =====================================================
+    function showCheckinPopup(v) {
+      const pop = document.getElementById('checkin-popup');
+      document.getElementById('popup-title').textContent = `Check-in สำเร็จ!`;
+      document.getElementById('popup-sub').textContent = `${v.id} • ${v.plate} • ${v.level}`;
+      pop.style.display = 'flex';
+      pop.classList.add('show');
+      setTimeout(() => { pop.classList.remove('show'); setTimeout(() => { pop.style.display = 'none'; }, 500); }, 4000);
+    }
+
+    function showCheckoutPopup(v) {
+      const pop = document.getElementById('checkout-popup');
+      document.getElementById('checkout-sub').textContent = `${v.id} • ${v.plate} • ${v.level}`;
+      pop.style.display = 'flex';
+      pop.classList.add('show');
+      setTimeout(() => { pop.classList.remove('show'); setTimeout(() => { pop.style.display = 'none'; }, 500); }, 4000);
+    }
+
+    // =====================================================
+    //  CLOCK
+    // =====================================================
+    function startClock() {
+      function tick() {
+        const now = new Date();
+        document.getElementById('hud-clock').textContent = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        document.getElementById('hud-date').textContent = now.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+      }
+      tick();
+      setInterval(tick, 1000);
+    }
+
+    // =====================================================
+    //  BOOT
+    // =====================================================
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const user = JSON.parse(sessionStorage.getItem('ems_user') || '{}');
+        if (!user.username) { window.location.href = 'index.html'; return; }
+
+        if (user.role === 'operator') {
+          alert('คุณไม่มีสิทธิ์เข้าถึงหน้าแผนที่');
+          window.location.href = 'checkin.html';
+          return;
+        }
+        isAdmin = (user.role === 'admin');
+        if (isAdmin || user.role === 'dispatch') {
+          document.getElementById('btn-hud-co').style.display = 'block';
+        }
+      } catch (e) { }
+
+      initMap();
+      startClock();
+
+      try {
+        // เชื่อมต่อ Sync และฟัง checkins แบบ real-time
+        await SyncManager.init(updateMap);
+        // โหลด/สร้างจุดเกิดเหตุ
+        await initIncident();
+      } catch (e) {
+        console.error('[Map] Sync failed:', e);
+        document.getElementById('sync-error').style.display = 'block';
+      }
+    });
+  </script>
 </body>
+
 </html>
