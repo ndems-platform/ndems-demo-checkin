@@ -357,14 +357,12 @@
 
     function updateIncidentBar() {
       if (!incidentPoint) {
-        document.getElementById('inc-label').textContent = '✅ ไม่มีเหตุฉุกเฉินในขณะนี้';
-        document.getElementById('inc-pulse-dot').style.display = 'none';
+        document.getElementById('inc-label').innerHTML = '✅ ไม่มีเหตุฉุกเฉินในขณะนี้';
         document.getElementById('btn-close-inc').style.display = 'none';
         document.getElementById('incident-badge').style.display = 'none';
         return;
       }
-      document.getElementById('inc-pulse-dot').style.display = 'inline-block';
-      document.getElementById('btn-close-inc').style.display = 'inline-block';
+      document.getElementById('btn-close-inc').style.display = 'flex';
       document.getElementById('incident-badge').style.display = 'inline-block';
 
       let phoneHtml = incidentPoint.phone ? ` <span style="color:var(--gold); font-weight:700; display:block; margin-top:4px;">📞 ${incidentPoint.phone}</span>` : '';
