@@ -18,7 +18,7 @@
       <div class="brand-header">
         <img src="niems.png" alt="NIEMS" class="brand-logo-img" onerror="this.style.display='none'"/>
         <div class="brand-text">
-          <h1 class="brand-title">NDEMS</h1>
+          <h1 class="brand-title">NDEMS <span style="background:#e63946;color:white;padding:2px 8px;border-radius:4px;font-size:1rem;vertical-align:middle;margin-left:4px;">DEMO</span></h1>
           <p class="brand-subtitle">National Digital Emergency Medical Services</p>
         </div>
       </div>
@@ -70,8 +70,8 @@
             <div class="hint-title">บัญชีทดสอบ Demo</div>
             <div class="hint-list">
               <span onclick="fillDemo('admin','admin123')">admin / admin123</span>
-              <span onclick="fillDemo('ems','ems1234')">ems / ems1234</span>
-              <span onclick="fillDemo('demo','demo')">demo / demo</span>
+              <span onclick="fillDemo('dispatch','dispatch123')">dispatch / dispatch123</span>
+              <span onclick="fillDemo('operator','operator123')">operator / operator123</span>
             </div>
           </div>
         </form>
@@ -100,9 +100,9 @@
 
 <script>
 const DEMO_USERS = [
-  {username:'admin', password:'admin123', name:'ผู้ดูแลระบบ'},
-  {username:'ems',   password:'ems1234',  name:'เจ้าหน้าที่ EMS'},
-  {username:'demo',  password:'demo',     name:'ผู้ใช้ทดสอบ'},
+  {username:'admin', password:'admin123', name:'ผู้ดูแลระบบ (Admin)', role: 'admin'},
+  {username:'dispatch', password:'dispatch123', name:'ผู้สั่งการ (Dispatch)', role: 'dispatch'},
+  {username:'operator', password:'operator123', name:'ผู้ปฏิบัติการ (Operator)', role: 'operator'},
 ];
 
 function fillDemo(u,p) {
@@ -125,15 +125,23 @@ function handleLogin(e) {
   setTimeout(()=>{
     const user=DEMO_USERS.find(x=>x.username===u&&x.password===p);
     if(user){
-      sessionStorage.setItem('ems_user',JSON.stringify({username:u,name:user.name}));
-      window.location.href='checkin.html';
+      sessionStorage.setItem('ems_user',JSON.stringify({username:u,name:user.name,role:user.role}));
+      if (user.role === 'operator') {
+        window.location.href='checkin.html';
+      } else {
+        window.location.href='map.html';
+      }
     } else {
       err.style.display='block'; sp.style.display='none'; bt.style.display='inline'; bn.disabled=false;
       document.getElementById('password').value='';
     }
   },1000);
 }
-if(sessionStorage.getItem('ems_user')) window.location.href='checkin.html';
+if(sessionStorage.getItem('ems_user')) {
+  const u = JSON.parse(sessionStorage.getItem('ems_user'));
+  if (u.role === 'operator') window.location.href='checkin.html';
+  else window.location.href='map.html';
+}
 </script>
 </body>
 </html>

@@ -18,7 +18,7 @@
       <img src="niems.png" alt="NIEMS" class="hud-logo" onerror="this.style.display='none'" />
     </div>
     <div class="hud-brand">
-      <div class="hud-title">NDEMS <span class="hud-accent">•</span> ระบบติดตามรถฉุกเฉิน</div>
+      <div class="hud-title">NDEMS <span class="hud-accent">•</span> ระบบติดตามรถฉุกเฉิน <span style="background:#e63946;color:white;padding:2px 6px;border-radius:4px;font-size:0.7rem;vertical-align:middle;margin-left:4px;">DEMO</span></div>
       <div class="hud-subtitle">National Digital Emergency Medical Services</div>
     </div>
   </div>
@@ -47,10 +47,14 @@
       <span class="live-dot"></span>
       <span class="live-text">LIVE</span>
     </div>
-    <div>
+    <div style="margin-right: 15px;">
       <div class="hud-clock" id="hud-clock">--:--:--</div>
       <div class="hud-date" id="hud-date">--</div>
     </div>
+    <button class="btn-logout-map" onclick="logoutMap()" style="background:#e63946;color:white;border:none;padding:6px 12px;border-radius:4px;font-family:inherit;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:4px;">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+      ออก
+    </button>
   </div>
 </header>
 
@@ -73,9 +77,8 @@
 
   <!-- QR Code for mobile checkin -->
   <div class="qr-section">
-    <div class="qr-label">📱 Scan เพื่อ Check-in บนมือถือ</div>
-    <div id="qr-container" class="qr-box"></div>
-    <div class="qr-url" id="qr-url-text">—</div>
+    <div class="qr-label">📱 กดหรือ Scan เพื่อ Check-in</div>
+    <div id="qr-container" class="qr-box" title="คลิกเพื่อเปิดหน้า Check-in"></div>
   </div>
 </aside>
 
@@ -222,6 +225,7 @@ async function initIncident() {
   incidentPoint = inc;
   drawIncident();
   updateIncidentBar();
+  if (Object.keys(checkins).length > 0) updatePanel(checkins);
 
   // ฟังการเปลี่ยนแปลงแบบ realtime
   SyncManager.watchIncident((newInc) => {
@@ -229,6 +233,7 @@ async function initIncident() {
     incidentPoint = newInc;
     drawIncident();
     updateIncidentBar();
+    if (Object.keys(checkins).length > 0) updatePanel(checkins);
   });
 }
 
@@ -441,6 +446,11 @@ function makePopupContent(c) {
 // =====================================================
 //  ADMIN CHECKOUT — ลบจาก Sync
 // =====================================================
+function logoutMap() {
+  sessionStorage.clear();
+  window.location.href = 'index.html';
+}
+
 async function doCheckout(id) {
   if (!confirm('ยืนยันการ Check-out ชุดปฏิบัติการนี้?')) return;
   try {
@@ -455,7 +465,16 @@ async function doCheckout(id) {
 function updatePanel(data) {
   const list  = document.getElementById('panel-list');
   const empty = document.getElementById('panel-empty');
-  const ids   = Object.keys(data);
+  
+  let ids = Object.keys(data);
+  if (incidentPoint && typeof turf !== 'undefined') {
+    const iPoint = turf.point([incidentPoint.lng, incidentPoint.lat]);
+    ids.sort((a, b) => {
+      const pA = turf.point([data[a].vehicle.lng, data[a].vehicle.lat]);
+      const pB = turf.point([data[b].vehicle.lng, data[b].vehicle.lat]);
+      return turf.distance(iPoint, pA) - turf.distance(iPoint, pB);
+    });
+  }
 
   if (ids.length === 0) {
     empty.style.display = 'flex';
@@ -488,7 +507,7 @@ function updatePanel(data) {
         </div>
         <span class="vc-als">${v.level}</span>
       </div>
-      <div class="vc-ops">${(c.operators||[]).map(o=>`<span>${o.avatar||'👤'} ${o.name.split(' ')[0]}</span>`).join('')}</div>
+      <div class="vc-ops"><span>👥 ผู้ปฏิบัติการ: ${(c.operators||[]).length} ท่าน</span></div>
       <div class="vc-time">⏱ Check-in ${t} น.</div>
       <div class="vc-actions">
         <button class="btn-route ${isActive?'active':''}" onclick="event.stopPropagation();handleRoute('${id}',${v.lat},${v.lng})">
@@ -553,10 +572,10 @@ function generateQR() {
     ? href.replace('map.html', 'checkin.html')
     : (href.replace(/\/?$/, '/') + 'checkin.html');
 
-  document.getElementById('qr-url-text').textContent = url;
-
   const container = document.getElementById('qr-container');
   container.innerHTML = '';
+  container.onclick = () => window.open(url, '_blank');
+  container.style.cursor = 'pointer';
 
   if (typeof QRCode !== 'undefined') {
     try {
@@ -582,7 +601,14 @@ function generateQR() {
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     const user = JSON.parse(sessionStorage.getItem('ems_user') || '{}');
-    isAdmin = (user.username === 'admin');
+    if (!user.username) { window.location.href = 'index.html'; return; }
+    
+    if (user.role === 'operator') {
+      alert('คุณไม่มีสิทธิ์เข้าถึงหน้าแผนที่');
+      window.location.href = 'checkin.html';
+      return;
+    }
+    isAdmin = (user.role === 'admin');
   } catch(e) {}
 
   initMap();

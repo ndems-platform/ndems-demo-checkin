@@ -14,7 +14,7 @@
     <div class="topbar-brand">
       <img src="niems.png" alt="NIEMS" class="topbar-logo" onerror="this.style.display='none'"/>
       <div>
-        <span class="topbar-title">NDEMS</span>
+        <span class="topbar-title">NDEMS <span style="background:#e63946;color:white;padding:2px 6px;border-radius:4px;font-size:0.7rem;vertical-align:middle;margin-left:4px;">DEMO</span></span>
         <span class="topbar-sep">|</span>
         <span class="topbar-sub">เช็คอิน</span>
       </div>
@@ -194,7 +194,20 @@ let activeVehicles = new Set();
 document.addEventListener('DOMContentLoaded', () => {
   const user = JSON.parse(sessionStorage.getItem('ems_user')||'{}');
   if (!user.username) { window.location.href='index.html'; return; }
+
+  if (user.role === 'dispatch') {
+    alert('คุณไม่มีสิทธิ์เข้าถึงหน้า Check-in');
+    window.location.href='map.html';
+    return;
+  }
+
   document.getElementById('user-name-display').textContent = user.name||user.username;
+
+  if (user.role === 'operator') {
+    const btnMap = document.querySelector('.btn-map');
+    if (btnMap) btnMap.style.display = 'none';
+  }
+
   renderOps();
   SyncManager.init((data) => {
     activeVehicles.clear();
@@ -319,15 +332,17 @@ async function doCheckin() {
       checkinTime: new Date().toISOString(),
     };
 
+    const checkedInVehId = selVeh.id;
     await SyncManager.save(entry);
     sessionStorage.setItem('last_checkin_id', entry.id);
+    selVeh = null; // Prevent SyncManager.init from resetting the form
 
     // ✅ Show success
     [1,2,3].forEach(i=>{
       document.getElementById('step-'+i).style.display='none';
       document.getElementById('s'+i).className='step done';
     });
-    document.getElementById('ok-v').textContent = selVeh.id;
+    document.getElementById('ok-v').textContent = checkedInVehId;
     document.getElementById('step-ok').style.display='flex';
 
   } catch(e) {
