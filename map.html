@@ -374,7 +374,34 @@
       if (!confirm('ยืนยันการปิดงาน และล้างจุดเกิดเหตุบนแผนที่?')) return;
       try {
         await SyncManager.saveIncident(null);
+        clearRoute();
       } catch (e) { console.error('Failed to clear incident', e); }
+
+      // ── ดึงพิกัดปัจจุบัน แล้วปักจุดใหม่ ──
+      const newInc = await new Promise(resolve => {
+        if (!navigator.geolocation) { resolve(null); return; }
+        try {
+          navigator.geolocation.getCurrentPosition(
+            pos => resolve({
+              lat: +(pos.coords.latitude).toFixed(6),
+              lng: +(pos.coords.longitude).toFixed(6),
+              name: 'จุดเกิดเหตุ (พิกัดปัจจุบัน)',
+              address: 'พิกัดจากอุปกรณ์',
+              phone: ''
+            }),
+            err => { console.warn('Geolocation error:', err); resolve(null); },
+            { enableHighAccuracy: true, timeout: 5000 }
+          );
+        } catch (err) { resolve(null); }
+      });
+
+      if (newInc) {
+        try { await SyncManager.saveIncident(newInc); } catch (e) {}
+        incidentPoint = newInc;
+        drawIncident();
+        updateIncidentBar();
+        mapInstance.flyTo([newInc.lat, newInc.lng], 13, { duration: 1.2 });
+      }
     }
 
     // =====================================================
@@ -503,7 +530,6 @@
 
           if (!lastKnownIds.has(id)) {
             showCheckinPopup(v);
-            marker.openPopup();
           }
         }
         idx++;
@@ -622,7 +648,11 @@
       </div>`;
 
         card.onclick = () => {
-          mapInstance.flyTo([v.lat, v.lng], 14, { duration: 1 });
+          if (incidentPoint) {
+            mapInstance.fitBounds([[v.lat, v.lng], [incidentPoint.lat, incidentPoint.lng]], { padding: [60, 60], duration: 1 });
+          } else {
+            mapInstance.flyTo([v.lat, v.lng], 14, { duration: 1 });
+          }
           markers[id]?.openPopup();
         };
         list.appendChild(card);
