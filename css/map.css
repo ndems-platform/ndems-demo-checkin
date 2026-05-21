@@ -297,7 +297,7 @@ body:has(.side-panel.collapsed) #map { right: 0; }
 .vc-als { color: white; border-radius: 4px; padding: .1rem .4rem; font-size: .7rem; font-weight: 700; flex-shrink: 0; }
 .level-BLS { background: #f4a261 !important; }
 .level-ALS { background: #e63946 !important; }
-.level-CLS { background: #6a4c93 !important; }
+.level-CLS { background: #2d9d78 !important; }
 .vc-ops { display: flex; flex-wrap: wrap; gap: .25rem; margin-bottom: .35rem; }
 .vc-ops span { font-size: .65rem; color: rgba(255,255,255,.5); background: rgba(255,255,255,.06); border-radius: 4px; padding: .1rem .35rem; }
 .vc-time { font-size: .65rem; color: rgba(255,255,255,.35); margin-bottom: .5rem; }

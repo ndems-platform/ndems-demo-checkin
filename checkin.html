@@ -9,6 +9,7 @@
     href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a3a6c'/><text y='52%' x='50%' dominant-baseline='central' text-anchor='middle' font-size='60'>🚑</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap"
     rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="css/checkin.css" />
 </head>
 
@@ -80,10 +81,16 @@
               <option value="">— เลือกระดับ —</option>
               <option value="BLS">BLS</option>
               <option value="ALS">ALS</option>
-              <option value="CLS">CLS</option>
+              <option value="CLS">CLS (สีเขียว)</option>
             </select>
             <span class="sel-arr">▾</span>
           </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label"><span class="badge-num">5</span> ตำแหน่งปัจจุบัน (เลื่อนหมุดเพื่อแก้ไข)</label>
+          <div id="checkin-map" style="height: 180px; border-radius: 8px; margin-top: 0.5rem; background: #e9ecef; z-index: 1;"></div>
+          <div id="loc-status" style="font-size: 0.75rem; color: #666; margin-top: 0.4rem;">กำลังค้นหาตำแหน่ง...</div>
         </div>
 
         <div class="actions">
@@ -176,6 +183,7 @@
     </section>
   </main>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script src="js/sync.js"></script>
   <script>
@@ -189,16 +197,55 @@
       return { lat: 14.0182, lng: 99.9584 };
     }
 
-    // ── Random position within radiusKm of (baseLat, baseLng) ──
-    function randomNearby(baseLat, baseLng, radiusKm) {
-      const R_DEG = radiusKm / 111; // approx degrees per km
-      const minR = R_DEG * 0.25;
-      const angle = Math.random() * Math.PI * 2;
-      const dist = minR + Math.random() * (R_DEG - minR);
-      return {
-        lat: +(baseLat + dist * Math.sin(angle)).toFixed(6),
-        lng: +(baseLng + dist * Math.cos(angle)).toFixed(6),
-      };
+    let checkinMap = null;
+    let checkinMarker = null;
+    let checkinPos = { lat: 14.0182, lng: 99.9584 };
+
+    async function initCheckinMap() {
+      if (!checkinMap) {
+        checkinMap = L.map('checkin-map').setView([14.0182, 99.9584], 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(checkinMap);
+        setTimeout(() => checkinMap.invalidateSize(), 500);
+      }
+      
+      const locStatus = document.getElementById('loc-status');
+      
+      const incident = await getIncident();
+      checkinPos = { lat: incident.lat, lng: incident.lng };
+      updateMarker();
+
+      if (navigator.geolocation) {
+        locStatus.textContent = '📍 กำลังขอตำแหน่งของคุณ...';
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            checkinPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            updateMarker();
+            checkinMap.setView([checkinPos.lat, checkinPos.lng], 15);
+            locStatus.textContent = '✅ ปักหมุดที่ตำแหน่งปัจจุบันของคุณแล้ว (สามารถเลื่อนหมุดเพื่อแก้ไขได้)';
+          },
+          (err) => {
+            locStatus.textContent = '⚠️ ไม่สามารถดึงตำแหน่งได้ จะใช้ตำแหน่งจุดเกิดเหตุแทน (คุณสามารถเลื่อนหมุดเองได้)';
+            checkinMap.setView([checkinPos.lat, checkinPos.lng], 13);
+          },
+          { enableHighAccuracy: true, timeout: 5000 }
+        );
+      } else {
+        locStatus.textContent = '⚠️ เบราว์เซอร์ไม่รองรับการดึงตำแหน่ง โปรดเลื่อนหมุดเอง';
+        checkinMap.setView([checkinPos.lat, checkinPos.lng], 13);
+      }
+    }
+
+    function updateMarker() {
+      if (checkinMarker) {
+        checkinMarker.setLatLng([checkinPos.lat, checkinPos.lng]);
+      } else {
+        checkinMarker = L.marker([checkinPos.lat, checkinPos.lng], { draggable: true }).addTo(checkinMap);
+        checkinMarker.on('dragend', function (e) {
+          const pos = checkinMarker.getLatLng();
+          checkinPos = { lat: pos.lat, lng: pos.lng };
+          document.getElementById('loc-status').textContent = '📍 เลือกตำแหน่งใหม่แล้ว';
+        });
+      }
     }
 
     // ── INIT ──
@@ -228,6 +275,7 @@
       SyncManager.init((data) => {
         // ไม่มี check state แล้ว
       });
+      initCheckinMap();
     });
 
     function checkStep1() {
@@ -283,16 +331,13 @@
       btn.innerHTML = '<span class="spin">⏳</span> กำลังบันทึก…';
 
       try {
-        const incident = await getIncident();
-        const pos = randomNearby(incident.lat, incident.lng, 15);
-
         const vehicle = {
           id: document.getElementById('inp-team').value.trim(),
           hospital: document.getElementById('inp-unit').value.trim(),
           plate: document.getElementById('inp-plate').value.trim(),
           level: document.getElementById('sel-level').value,
-          lat: pos.lat,
-          lng: pos.lng
+          lat: checkinPos.lat,
+          lng: checkinPos.lng
         };
 
         let operators = [];

@@ -106,7 +106,7 @@ body{font-family:'Sarabun',sans-serif;background:var(--gray-50);color:var(--gray
 .als-tag{color:white;border-radius:6px;padding:.15rem .6rem;font-size:.8rem;font-weight:700;display:inline-block;}
 .level-BLS{background:#f4a261;}
 .level-ALS{background:#e63946;}
-.level-CLS{background:#6a4c93;}
+.level-CLS{background:#2d9d78;}
 
 /* SUCCESS */
 .success-sec{flex-direction:column;align-items:center;justify-content:center;background:white;border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:3rem 2rem;text-align:center;gap:1.25rem;animation:fadeUp .5s ease;}
