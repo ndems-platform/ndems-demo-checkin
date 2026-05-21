@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NDEMS – เช็คอินชุดปฏิบัติการ</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/checkin.css"/>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="topbar-brand">
+      <img src="niems.png" alt="NIEMS" class="topbar-logo" onerror="this.style.display='none'"/>
+      <div>
+        <span class="topbar-title">NDEMS</span>
+        <span class="topbar-sep">|</span>
+        <span class="topbar-sub">เช็คอิน</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="user-name" id="user-name-display">ผู้ใช้งาน</span>
+      <button class="btn-logout" onclick="logout()">ออก</button>
+    </div>
+  </div>
+</header>
+
+<main class="main-content">
+  <!-- Steps -->
+  <div class="steps-bar">
+    <div class="step active" id="s1"><div class="step-num">1</div><div class="step-label">ชุดปฏิบัติการ</div></div>
+    <div class="step-line"></div>
+    <div class="step" id="s2"><div class="step-num">2</div><div class="step-label">ผู้ปฏิบัติการ</div></div>
+    <div class="step-line"></div>
+    <div class="step" id="s3"><div class="step-num">3</div><div class="step-label">ยืนยัน</div></div>
+  </div>
+
+  <!-- STEP 1 -->
+  <section class="card" id="step-1">
+    <div class="card-hd blue">
+      <div class="card-hd-icon">🚑</div>
+      <div><h2 class="card-title">เลือกชุดปฏิบัติการ</h2><p class="card-desc">กรุณาเลือกตามลำดับ</p></div>
+    </div>
+    <div class="card-body">
+      <div class="field-group">
+        <label class="field-label"><span class="badge-num">1</span> หน่วยปฏิบัติการ</label>
+        <div class="fixed-box">
+          <span class="fixed-name">🏥 โรงพยาบาลกำแพงแสน</span>
+          <span class="code-tag">73-1-DEP-16</span>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="sel-v"><span class="badge-num">2</span> ชุดปฏิบัติการ</label>
+        <div class="sel-wrap">
+          <select id="sel-v" class="sel" onchange="onVehicle()">
+            <option value="">— กรุณาเลือก —</option>
+            <option value="v1">73-1-VEH-16</option>
+            <option value="v2">73-1-VEH-73010300082</option>
+            <option value="v3">73-1-VEH-73010300084</option>
+            <option value="v4">73-1-VEH-73010300093</option>
+            <option value="v5">73-1-VEH-73010300094</option>
+            <option value="v6">73-1-VEH-73010300095</option>
+            <option value="v7">73-1-VEH-73010300096</option>
+            <option value="v8">73-1-VEH-73010300131</option>
+          </select>
+          <span class="sel-arr">▾</span>
+        </div>
+      </div>
+
+      <div id="veh-detail" class="veh-detail" style="display:none">
+        <div class="vd-row">
+          <div class="vd-item"><div class="vd-label">โรงพยาบาล</div><div class="vd-val" id="d-hosp">—</div></div>
+          <div class="vd-item"><div class="vd-label">ทะเบียน</div><div class="vd-val" id="d-plate">—</div></div>
+          <div class="vd-item"><div class="vd-label">ระดับ</div><div class="vd-val" id="d-level">—</div></div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn-next" id="btn-n1" onclick="goStep(2)" disabled>
+          ถัดไป <svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z" fill="currentColor"/></svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="card" id="step-2" style="display:none">
+    <div class="card-hd blue">
+      <div class="card-hd-icon">👥</div>
+      <div><h2 class="card-title">เลือกผู้ปฏิบัติการ</h2><p class="card-desc">เลือกได้ 1–5 ท่าน</p></div>
+    </div>
+    <div class="card-body">
+      <div class="op-grid" id="op-grid"></div>
+      <div class="sel-ops" id="sel-ops" style="display:none">
+        <div class="sel-ops-title">ที่เลือก</div>
+        <div class="sel-tags" id="sel-tags"></div>
+      </div>
+      <div class="actions two">
+        <button class="btn-back" onclick="goStep(1)">← ย้อนกลับ</button>
+        <button class="btn-next" id="btn-n2" onclick="goStep(3)" disabled>ถัดไป →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section class="card" id="step-3" style="display:none">
+    <div class="card-hd green">
+      <div class="card-hd-icon">✅</div>
+      <div><h2 class="card-title">ยืนยันการ Check-in</h2><p class="card-desc">ตรวจสอบข้อมูล</p></div>
+    </div>
+    <div class="card-body">
+      <div class="summary">
+        <div class="sum-row"><span class="sum-lbl">หน่วยปฏิบัติการ</span><span class="sum-val">โรงพยาบาลกำแพงแสน (73-1-DEP-16)</span></div>
+        <div class="sum-row"><span class="sum-lbl">ชุดปฏิบัติการ</span><span class="sum-val" id="sv"></span></div>
+        <div class="sum-row"><span class="sum-lbl">ทะเบียนรถ</span><span class="sum-val" id="sp"></span></div>
+        <div class="sum-row"><span class="sum-lbl">ระดับ</span><span class="sum-val"><span class="als-tag" id="sl"></span></span></div>
+        <div class="sum-row"><span class="sum-lbl">ผู้ปฏิบัติการ</span><span class="sum-val" id="so"></span></div>
+        <div class="sum-row"><span class="sum-lbl">เวลา</span><span class="sum-val" id="st"></span></div>
+      </div>
+      <div class="actions two">
+        <button class="btn-back" onclick="goStep(2)">← ย้อนกลับ</button>
+        <button class="btn-checkin" id="btn-ci" onclick="doCheckin()">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/></svg>
+          ยืนยัน Check-in
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SUCCESS -->
+  <section id="step-ok" class="success-sec" style="display:none">
+    <div class="ok-circle">✓</div>
+    <h2 class="ok-title">Check-in สำเร็จ!</h2>
+    <p class="ok-desc">ชุดปฏิบัติการ <b id="ok-v"></b> ปรากฏบนแผนที่แล้ว</p>
+    <button class="btn-map" onclick="window.location.href='map.html'">🗺 ดูบนแผนที่</button>
+    <button class="btn-more" onclick="resetForm()">+ เพิ่มอีกชุด</button>
+    <button class="btn-more" style="background:#e63946; color:white; border-color:#e63946; margin-top:0.5rem;" onclick="checkoutSelf()">🔴 Check-out ชุดนี้</button>
+  </section>
+</main>
+
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script src="js/sync.js"></script>
+<script>
+const VEHICLES = {
+  v1: { id:'73-1-VEH-16',          hospital:'รพ.กำแพงแสน', plate:'กล 5087 นฐ', level:'ALS' },
+  v2: { id:'73-1-VEH-73010300082', hospital:'รพ.กำแพงแสน', plate:'บว 1924 นฐ', level:'ALS' },
+  v3: { id:'73-1-VEH-73010300084', hospital:'รพ.กำแพงแสน', plate:'กบ 5650 นฐ', level:'ALS' },
+  v4: { id:'73-1-VEH-73010300093', hospital:'รพ.กำแพงแสน', plate:'กว 2476 นฐ', level:'ALS' },
+  v5: { id:'73-1-VEH-73010300094', hospital:'รพ.กำแพงแสน', plate:'กบ 8458 นฐ', level:'ALS' },
+  v6: { id:'73-1-VEH-73010300095', hospital:'รพ.กำแพงแสน', plate:'กท 6905 นฐ', level:'ALS' },
+  v7: { id:'73-1-VEH-73010300096', hospital:'รพ.กำแพงแสน', plate:'ว 8385 กท', level:'ALS' },
+  v8: { id:'73-1-VEH-73010300131', hospital:'รพ.กำแพงแสน', plate:'กจ 3573 นฐ', level:'ALS' },
+};
+
+// ── ดึงจุดเกิดเหตุจาก Firebase ──
+async function getIncident() {
+  try {
+    const inc = await SyncManager.getIncident();
+    if (inc && inc.lat && inc.lng) return inc;
+  } catch(e) {}
+  // Default fallback: Kamphaeng Saen area
+  return { lat: 14.0182, lng: 99.9584 };
+}
+
+// ── Random position within radiusKm of (baseLat, baseLng) ──
+function randomNearby(baseLat, baseLng, radiusKm) {
+  const R_DEG = radiusKm / 111; // approx degrees per km
+  const minR  = R_DEG * 0.25;
+  const angle = Math.random() * Math.PI * 2;
+  const dist  = minR + Math.random() * (R_DEG - minR);
+  return {
+    lat: +(baseLat + dist * Math.sin(angle)).toFixed(6),
+    lng: +(baseLng + dist * Math.cos(angle)).toFixed(6),
+  };
+}
+const OPERATORS = [
+  {id:'op1',name:'นาย สมชาย ใจดี',    role:'แพทย์ฉุกเฉิน',       avatar:'👨‍⚕️'},
+  {id:'op2',name:'น.ส. สุดา แสนดี',    role:'พยาบาลฉุกเฉิน',      avatar:'👩‍⚕️'},
+  {id:'op3',name:'นาย ประเสริฐ มานะ',  role:'เจ้าหน้าที่ฉุกเฉิน', avatar:'🧑‍⚕️'},
+  {id:'op4',name:'น.ส. วิไล ทองดี',    role:'พยาบาลฉุกเฉิน',      avatar:'👩‍⚕️'},
+  {id:'op5',name:'นาย วีระ กล้าหาญ',   role:'พนักงานขับรถ',        avatar:'🧑'},
+  {id:'op6',name:'น.ส. นิภา สุขสม',    role:'เจ้าหน้าที่ฉุกเฉิน', avatar:'🧑‍⚕️'},
+  {id:'op7',name:'นาย ชาตรี รักษ์',    role:'แพทย์ฉุกเฉิน',       avatar:'👨‍⚕️'},
+  {id:'op8',name:'น.ส. กัญญา เพชร',    role:'พยาบาลฉุกเฉิน',      avatar:'👩‍⚕️'},
+];
+
+let selVeh = null;
+let selOps = new Set();
+let activeVehicles = new Set();
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', () => {
+  const user = JSON.parse(sessionStorage.getItem('ems_user')||'{}');
+  if (!user.username) { window.location.href='index.html'; return; }
+  document.getElementById('user-name-display').textContent = user.name||user.username;
+  renderOps();
+  SyncManager.init((data) => {
+    activeVehicles.clear();
+    if (data) {
+      Object.values(data).forEach(c => {
+        if (c && c.vehicle && c.vehicle.key) activeVehicles.add(c.vehicle.key);
+      });
+      if (selVeh && activeVehicles.has(selVeh.key)) {
+        showToast('⚠️ ชุดปฏิบัติการที่คุณเลือกถูก Check-in ไปแล้ว');
+        resetForm();
+      }
+    }
+    
+    const sel = document.getElementById('sel-v');
+    if (sel) {
+      Array.from(sel.options).forEach(opt => {
+        if (!opt.value) return;
+        if (activeVehicles.has(opt.value)) {
+          opt.disabled = true;
+          if (!opt.text.includes('(ปฏิบัติงานอยู่)')) opt.text += ' (ปฏิบัติงานอยู่)';
+        } else {
+          opt.disabled = false;
+          opt.text = opt.text.replace(' (ปฏิบัติงานอยู่)', '');
+        }
+      });
+    }
+  });
+});
+
+// ── VEHICLE SELECT ──
+function onVehicle() {
+  const k = document.getElementById('sel-v').value;
+  const d = document.getElementById('veh-detail');
+  
+  if (k && activeVehicles.has(k)) {
+    showToast('❌ ชุดปฏิบัติการนี้กำลังปฏิบัติงานอยู่ (ถูก Check-in แล้ว)');
+    document.getElementById('sel-v').value = '';
+    selVeh=null; d.style.display='none';
+    document.getElementById('btn-n1').disabled=true;
+    return;
+  }
+  
+  if (k && VEHICLES[k]) {
+    selVeh = {key:k,...VEHICLES[k]};
+    document.getElementById('d-hosp').textContent  = VEHICLES[k].hospital;
+    document.getElementById('d-plate').textContent = VEHICLES[k].plate;
+    document.getElementById('d-level').textContent = VEHICLES[k].level;
+    d.style.display='block';
+    document.getElementById('btn-n1').disabled=false;
+  } else {
+    selVeh=null; d.style.display='none';
+    document.getElementById('btn-n1').disabled=true;
+  }
+}
+
+// ── OPERATORS ──
+function renderOps() {
+  document.getElementById('op-grid').innerHTML = OPERATORS.map(op=>`
+    <div class="op-card" id="opc-${op.id}" onclick="toggleOp('${op.id}')">
+      <span class="op-av">${op.avatar}</span>
+      <div class="op-info"><div class="op-name">${op.name}</div><div class="op-role">${op.role}</div></div>
+      <span class="op-chk" id="och-${op.id}"></span>
+    </div>`).join('');
+}
+function toggleOp(id) {
+  if (selOps.has(id)) {
+    selOps.delete(id);
+    document.getElementById('opc-'+id).classList.remove('sel');
+    document.getElementById('och-'+id).textContent='';
+  } else {
+    if(selOps.size>=5){showToast('เลือกได้สูงสุด 5 ท่าน');return;}
+    selOps.add(id);
+    document.getElementById('opc-'+id).classList.add('sel');
+    document.getElementById('och-'+id).textContent='✓';
+  }
+  const hasOps = selOps.size>0;
+  document.getElementById('btn-n2').disabled=!hasOps;
+  const wrap=document.getElementById('sel-ops');
+  if(hasOps){
+    wrap.style.display='block';
+    document.getElementById('sel-tags').innerHTML=[...selOps]
+      .map(id=>{ const o=OPERATORS.find(x=>x.id===id); return `<span class="stag">${o.avatar} ${o.name.split(' ')[0]}</span>`; }).join('');
+  } else { wrap.style.display='none'; }
+}
+
+// ── NAVIGATION ──
+function goStep(n) {
+  [1,2,3].forEach(i=>{
+    document.getElementById('step-'+i).style.display = i===n?'block':'none';
+    const el=document.getElementById('s'+i);
+    el.className='step'+(i<n?' done':i===n?' active':'');
+  });
+  document.getElementById('step-ok').style.display='none';
+  if(n===3) fillSummary();
+}
+
+function fillSummary() {
+  document.getElementById('sv').textContent  = selVeh.id;
+  document.getElementById('sp').textContent  = selVeh.plate;
+  document.getElementById('sl').textContent  = selVeh.level;
+  document.getElementById('so').textContent  = [...selOps].map(id=>OPERATORS.find(o=>o.id===id).name).join(', ');
+  document.getElementById('st').textContent  = new Date().toLocaleString('th-TH',{year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+
+// ── CHECK-IN ──
+async function doCheckin() {
+  const btn = document.getElementById('btn-ci');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spin">⏳</span> กำลังบันทึก…';
+
+  try {
+    // Random ตำแหน่งรถภายใน 15 กม. จากจุดเกิดเหตุ
+    const incident = await getIncident();
+    const pos = randomNearby(incident.lat, incident.lng, 15);
+
+    const vehicle = { ...selVeh, lat: pos.lat, lng: pos.lng };
+
+    const entry = {
+      id: Date.now(),
+      vehicle,
+      operators: [...selOps].map(id=>OPERATORS.find(o=>o.id===id)),
+      checkinTime: new Date().toISOString(),
+    };
+
+    await SyncManager.save(entry);
+    sessionStorage.setItem('last_checkin_id', entry.id);
+
+    // ✅ Show success
+    [1,2,3].forEach(i=>{
+      document.getElementById('step-'+i).style.display='none';
+      document.getElementById('s'+i).className='step done';
+    });
+    document.getElementById('ok-v').textContent = selVeh.id;
+    document.getElementById('step-ok').style.display='flex';
+
+  } catch(e) {
+    console.error('[CheckIn] Sync error:', e);
+    // ❌ แสดง error ให้ user เห็น
+    btn.disabled=false;
+    btn.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/></svg> ยืนยัน Check-in';
+    const msg = e?.message || 'ไม่สามารถบันทึกได้';
+    showToast(`❌ Sync Error: ${msg}`);
+  }
+}
+
+function resetForm() {
+  selVeh=null; selOps.clear();
+  document.getElementById('sel-v').value='';
+  document.getElementById('veh-detail').style.display='none';
+  document.getElementById('btn-n1').disabled=true;
+  
+  const btn = document.getElementById('btn-ci');
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/></svg> ยืนยัน Check-in';
+  }
+  
+  renderOps();
+  goStep(1);
+}
+
+async function checkoutSelf() {
+  const cid = sessionStorage.getItem('last_checkin_id');
+  if (cid) {
+    try {
+      await SyncManager.remove(cid);
+      sessionStorage.removeItem('last_checkin_id');
+      showToast('Check-out สำเร็จ');
+    } catch(e) {}
+  }
+  resetForm();
+}
+
+async function logout() { 
+  const cid = sessionStorage.getItem('last_checkin_id');
+  if (cid) {
+    try { await SyncManager.remove(cid); } catch(e) {}
+  }
+  sessionStorage.clear(); 
+  window.location.href='index.html'; 
+}
+function showToast(msg) {
+  const t=document.createElement('div'); t.className='toast'; t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.classList.add('show'),10);
+  setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),300);},3000);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NDEMS – แผนที่ติดตามรถฉุกเฉิน</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="css/map.css" />
+</head>
+<body>
+
+<!-- ===== TOP HUD ===== -->
+<header class="map-hud">
+  <div class="hud-left">
+    <div class="hud-logo-wrap">
+      <img src="niems.png" alt="NIEMS" class="hud-logo" onerror="this.style.display='none'" />
+    </div>
+    <div class="hud-brand">
+      <div class="hud-title">NDEMS <span class="hud-accent">•</span> ระบบติดตามรถฉุกเฉิน</div>
+      <div class="hud-subtitle">National Digital Emergency Medical Services</div>
+    </div>
+  </div>
+
+  <div class="hud-center">
+    <div class="hud-stats">
+      <div class="stat-item">
+        <div class="stat-num" id="stat-total">0</div>
+        <div class="stat-label">ชุดปฏิบัติการ</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <div class="stat-num als" id="stat-als">0</div>
+        <div class="stat-label">ALS</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <div class="stat-num" id="stat-ops">0</div>
+        <div class="stat-label">ผู้ปฏิบัติการ</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hud-right">
+    <div class="live-badge">
+      <span class="live-dot"></span>
+      <span class="live-text">LIVE</span>
+    </div>
+    <div>
+      <div class="hud-clock" id="hud-clock">--:--:--</div>
+      <div class="hud-date" id="hud-date">--</div>
+    </div>
+  </div>
+</header>
+
+<!-- ===== MAP CONTAINER ===== -->
+<div id="map"></div>
+
+<!-- ===== SIDE PANEL ===== -->
+<aside class="side-panel" id="side-panel">
+  <div class="panel-header">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" fill="currentColor"/></svg>
+    ชุดปฏิบัติการ
+    <span class="incident-badge" id="incident-badge" title="จุดเกิดเหตุ">🔴 เหตุฉุกเฉิน</span>
+  </div>
+  <div class="panel-list" id="panel-list">
+    <div class="panel-empty" id="panel-empty">
+      <div class="empty-icon">🚑</div>
+      <p>ยังไม่มีชุดปฏิบัติการ<br>Check-in บนมือถือ</p>
+    </div>
+  </div>
+
+  <!-- QR Code for mobile checkin -->
+  <div class="qr-section">
+    <div class="qr-label">📱 Scan เพื่อ Check-in บนมือถือ</div>
+    <div id="qr-container" class="qr-box"></div>
+    <div class="qr-url" id="qr-url-text">—</div>
+  </div>
+</aside>
+
+<!-- ===== TOGGLE PANEL BTN ===== -->
+<button class="panel-toggle" id="panel-toggle" onclick="togglePanel()">
+  <svg viewBox="0 0 24 24" fill="none"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" fill="currentColor"/></svg>
+</button>
+
+<!-- ===== INCIDENT INFO PANEL ===== -->
+<div class="incident-info-bar" id="incident-info-bar">
+  <span class="inc-pulse"></span>
+  <span id="inc-label">📍 จุดเกิดเหตุ: กำลังโหลด…</span>
+  <span class="inc-dist" id="inc-dist"></span>
+</div>
+
+<!-- ===== SYNC ERROR BANNER ===== -->
+<div class="firebase-error" id="sync-error" style="display:none;">
+  ⚠️ ไม่สามารถเชื่อมต่อระบบ Sync (MQTT) ได้ — ตรวจสอบ Network
+</div>
+
+<!-- ===== CHECKIN POPUP ===== -->
+<div class="checkin-popup" id="checkin-popup" style="display:none;">
+  <div class="popup-icon">🚑</div>
+  <div class="popup-content">
+    <div class="popup-title" id="popup-title">Check-in สำเร็จ!</div>
+    <div class="popup-sub" id="popup-sub">—</div>
+  </div>
+</div>
+
+<!-- ===== LEAFLET + QR + MQTT ===== -->
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script src="js/sync.js"></script>
+
+<script>
+// =====================================================
+//  GLOBALS
+// =====================================================
+let checkins = {};
+let markers  = {};
+let mapInstance;
+let panelOpen = true;
+let lastKnownIds = new Set();
+let incidentPoint = null;
+let incidentMarker = null;
+let incidentCircle = null;
+let activeRoute = null;
+let activeRouteId = null;
+let isAdmin = false;
+
+// =====================================================
+//  LEAFLET MAP INIT
+// =====================================================
+function initMap() {
+  mapInstance = L.map('map', {
+    center: [13.0, 101.5],
+    zoom: 6,
+    zoomControl: true,
+    attributionControl: true,
+    minZoom: 5,
+    maxZoom: 18,
+  });
+
+  // OSM tiles — map เดิม
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>',
+    maxZoom: 19,
+  }).addTo(mapInstance);
+
+  // Thailand mask — โหลด GeoJSON จังหวัดแล้วสร้าง mask ด้วย Turf.js
+  addThailandMask();
+}
+
+// =====================================================
+//  THAILAND MASK — ใช้ GeoJSON จังหวัด + Turf.js difference
+//  ให้พื้นที่นอกไทยจาง (white overlay) ขอบตรงตามแผนที่จริง
+// =====================================================
+function addThailandMask() {
+  const GEOJSON_URL = 'https://raw.githubusercontent.com/chingchai/OpenGISData-Thailand/master/provinces.geojson';
+
+  fetch(GEOJSON_URL)
+    .then(r => r.json())
+    .then(data => {
+      // รวมทุกจังหวัดเป็น union เดียว
+      let union = data.features[0];
+      for (let i = 1; i < data.features.length; i++) {
+        union = turf.union(union, data.features[i]);
+      }
+
+      // World polygon ลบด้วยขอบไทย → ได้พื้นที่นอกไทย
+      const world = turf.polygon([[
+        [-180, 90], [-180, -90], [180, -90], [180, 90], [-180, 90]
+      ]]);
+      const mask = turf.difference(world, union);
+
+      // เพิ่ม mask (white fade) นอกประเทศไทย
+      L.geoJSON(mask, {
+        style: {
+          color: 'transparent',
+          fillColor: '#ffffff',
+          fillOpacity: 0.82,
+          weight: 0,
+          interactive: false,
+        }
+      }).addTo(mapInstance);
+
+      // เส้นขอบจังหวัดภายในไทย
+      L.geoJSON(data, {
+        style: {
+          color: '#94a3b8',
+          weight: 0.8,
+          opacity: 0.5,
+          fillOpacity: 0,
+          interactive: false,
+        }
+      }).addTo(mapInstance);
+    })
+    .catch(e => console.warn('[Mask] GeoJSON load failed, using bbox fallback', e));
+}
+
+// =====================================================
+//  INCIDENT POINT — โหลดจาก MQTT, สร้างถ้าไม่มี
+// =====================================================
+async function initIncident() {
+  let inc = await SyncManager.getIncident();
+
+  if (!inc) {
+    const baseLat = 14.0182;
+    const baseLng = 99.9584;
+    const maxR = 0.065, minR = 0.025;
+    const angle = Math.random() * Math.PI * 2;
+    const dist  = minR + Math.random() * (maxR - minR);
+    inc = {
+      lat: +(baseLat + dist * Math.sin(angle)).toFixed(6),
+      lng: +(baseLng + dist * Math.cos(angle)).toFixed(6),
+      name: 'จุดเกิดเหตุ',
+      address: 'ถ.กำแพงแสน อ.กำแพงแสน จ.นครปฐม',
+    };
+    await SyncManager.saveIncident(inc);
+  }
+
+  incidentPoint = inc;
+  drawIncident();
+  updateIncidentBar();
+
+  // ฟังการเปลี่ยนแปลงแบบ realtime
+  SyncManager.watchIncident((newInc) => {
+    if (!newInc) return;
+    incidentPoint = newInc;
+    drawIncident();
+    updateIncidentBar();
+  });
+}
+
+function drawIncident() {
+  if (!incidentPoint) return;
+
+  if (incidentMarker) mapInstance.removeLayer(incidentMarker);
+  if (incidentCircle) mapInstance.removeLayer(incidentCircle);
+
+  const { lat, lng } = incidentPoint;
+
+  incidentCircle = L.circle([lat, lng], {
+    radius: 10000,
+    color: '#e63946',
+    fillColor: '#e63946',
+    fillOpacity: 0.05,
+    weight: 2,
+    dashArray: '6 4',
+  }).addTo(mapInstance);
+
+  const incIcon = L.divIcon({
+    html: `<div class="inc-marker-wrap">
+             <div class="inc-marker-pin">
+               <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+                 <path d="M12 2L1 21h22L12 2zm1 14h-2v-2h2v2zm0-4h-2V8h2v4z" fill="white"/>
+               </svg>
+             </div>
+             <div class="inc-marker-label">จุดเกิดเหตุ</div>
+           </div>`,
+    iconSize: [50, 50],
+    iconAnchor: [25, 25],
+    popupAnchor: [0, -25],
+    className: '',
+  });
+
+  incidentMarker = L.marker([lat, lng], { icon: incIcon, zIndexOffset: 1000 })
+    .addTo(mapInstance)
+    .bindPopup(`
+      <div class="popup-inner">
+        <div class="popup-vehicle-id" style="color:#e63946;">🚨 จุดเกิดเหตุฉุกเฉิน</div>
+        <table class="popup-table">
+          <tr><td>พิกัด</td><td><b>${lat.toFixed(4)}, ${lng.toFixed(4)}</b></td></tr>
+          <tr><td>ที่อยู่</td><td><b>${incidentPoint.address}</b></td></tr>
+          <tr><td>รัศมีครอบคลุม</td><td><b>10 กม.</b></td></tr>
+        </table>
+      </div>`, { maxWidth: 260, className: 'custom-popup' });
+
+  mapInstance.flyTo([lat, lng], 11, { duration: 1.2 });
+}
+
+function updateIncidentBar() {
+  if (!incidentPoint) return;
+  document.getElementById('inc-label').textContent =
+    `📍 จุดเกิดเหตุ: ${incidentPoint.address}  (${incidentPoint.lat.toFixed(4)}, ${incidentPoint.lng.toFixed(4)})`;
+}
+
+// =====================================================
+//  AMBULANCE MARKER SVG
+// =====================================================
+function makeAmbulanceIcon(plate, level, index) {
+  const colors = ['#0077b6','#2a5298','#2d9d78','#f4a261','#6a4c93'];
+  const color = colors[index % colors.length];
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 56 70">
+    <ellipse cx="28" cy="66" rx="14" ry="4" fill="rgba(0,0,0,0.22)"/>
+    <path d="M28 3C18 3 10 11 10 21C10 35.5 28 62 28 62C28 62 46 35.5 46 21C46 11 38 3 28 3Z"
+      fill="${color}" stroke="white" stroke-width="2.5"/>
+    <rect x="14" y="16" width="22" height="13" rx="2.5" fill="white" opacity="0.97"/>
+    <rect x="29" y="12" width="9" height="9" rx="2" fill="white" opacity="0.93"/>
+    <rect x="30" y="13" width="7" height="5.5" rx="1.5" fill="rgba(100,180,255,0.55)"/>
+    <rect x="17" y="20" width="7.5" height="2.5" rx="1" fill="${color}"/>
+    <rect x="19.5" y="17.5" width="2.5" height="7.5" rx="1" fill="${color}"/>
+    <circle cx="19" cy="29" r="3.5" fill="${color}" stroke="white" stroke-width="1.8"/>
+    <circle cx="34" cy="29" r="3.5" fill="${color}" stroke="white" stroke-width="1.8"/>
+    <circle cx="30" cy="11.5" r="2" fill="#ff4444" opacity="0.95"/>
+    <circle cx="35" cy="11.5" r="2" fill="#4499ff" opacity="0.95"/>
+    <rect x="36" y="18" width="3.5" height="2" rx="1" fill="rgba(255,220,80,0.9)"/>
+  </svg>`;
+
+  return L.divIcon({
+    html: `<div class="amb-marker-wrap">
+             <div class="amb-svg-wrap">${svg}</div>
+             <div class="amb-label" style="background:${color}">${plate}</div>
+           </div>`,
+    iconSize: [52, 58],
+    iconAnchor: [26, 48],
+    popupAnchor: [0, -48],
+    className: '',
+  });
+}
+
+// =====================================================
+//  ROUTE: vehicle → incident
+// =====================================================
+async function drawRoute(checkinId, vLat, vLng) {
+  clearRoute();
+  if (!incidentPoint) return;
+
+  const iLat = incidentPoint.lat;
+  const iLng = incidentPoint.lng;
+
+  let routeLayer = null;
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${vLng},${vLat};${iLng},${iLat}?overview=full&geometries=geojson`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (res.ok) {
+      const data = await res.json();
+      const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+      routeLayer = L.polyline(coords, {
+        color: '#1a73e8',
+        weight: 6,
+        opacity: 0.9,
+        dashArray: '',
+        className: 'route-line',
+      }).addTo(mapInstance);
+
+      const dist = (data.routes[0].distance / 1000).toFixed(1);
+      const dur  = Math.round(data.routes[0].duration / 60);
+      routeLayer.bindPopup(`<div class="popup-inner"><b>🛣 เส้นทาง</b><br>ระยะ ${dist} กม. • ประมาณ ${dur} นาที</div>`, { className:'custom-popup' });
+      routeLayer.bindTooltip(`ประมาณ ${dur} นาที (${dist} กม.)`, { permanent: true, direction: 'center', className: 'route-time-tooltip' });
+    }
+  } catch(e) {
+    console.warn('OSRM failed, fallback straight line', e);
+  }
+
+  if (!routeLayer) {
+    routeLayer = L.polyline([[vLat, vLng], [iLat, iLng]], {
+      color: '#1a73e8',
+      weight: 5,
+      opacity: 0.8,
+      dashArray: '12 8',
+      className: 'route-line',
+    }).addTo(mapInstance);
+  }
+
+  activeRoute = routeLayer;
+  activeRouteId = checkinId;
+  mapInstance.fitBounds([[vLat, vLng], [iLat, iLng]], { padding: [60, 60] });
+}
+
+function clearRoute() {
+  if (activeRoute) { mapInstance.removeLayer(activeRoute); activeRoute = null; }
+  activeRouteId = null;
+}
+
+// =====================================================
+//  UPDATE MAP FROM SYNC DATA
+// =====================================================
+function updateMap(data) {
+  const currentIds = new Set(Object.keys(data));
+
+  Object.keys(markers).forEach(id => {
+    if (!currentIds.has(id)) {
+      mapInstance.removeLayer(markers[id]);
+      delete markers[id];
+    }
+  });
+
+  let totalOps = 0, alsCount = 0, idx = 0;
+
+  currentIds.forEach(id => {
+    const c = data[id];
+    const v = c.vehicle;
+    totalOps += (c.operators || []).length;
+    if (v.level === 'ALS') alsCount++;
+
+    if (!markers[id]) {
+      const icon = makeAmbulanceIcon(v.plate, v.level, idx);
+      const marker = L.marker([v.lat, v.lng], { icon })
+        .addTo(mapInstance)
+        .bindPopup(makePopupContent(c), { maxWidth: 270, className: 'custom-popup' });
+      markers[id] = marker;
+
+      if (!lastKnownIds.has(id)) {
+        showCheckinPopup(v);
+        marker.openPopup();
+      }
+    }
+    idx++;
+  });
+
+  lastKnownIds = currentIds;
+  checkins = data;
+
+  document.getElementById('stat-total').textContent = currentIds.size;
+  document.getElementById('stat-als').textContent   = alsCount;
+  document.getElementById('stat-ops').textContent   = totalOps;
+
+  updatePanel(data);
+}
+
+function makePopupContent(c) {
+  const v = c.vehicle;
+  const ops = (c.operators || []).map(o => `<div class="popup-op">${o.avatar || '👤'} ${o.name}</div>`).join('');
+  const t = new Date(c.checkinTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+  return `
+    <div class="popup-inner">
+      <div class="popup-vehicle-id">${v.id}</div>
+      <table class="popup-table">
+        <tr><td>โรงพยาบาล</td><td><b>${v.hospital}</b></td></tr>
+        <tr><td>ทะเบียน</td><td><b>${v.plate}</b></td></tr>
+        <tr><td>ระดับ</td><td><span class="popup-als">${v.level}</span></td></tr>
+        <tr><td>Check-in</td><td>${t} น.</td></tr>
+      </table>
+      <div class="popup-ops-label">ผู้ปฏิบัติการ (${(c.operators||[]).length} ท่าน)</div>
+      <div class="popup-ops-list">${ops}</div>
+    </div>`;
+}
+
+// =====================================================
+//  ADMIN CHECKOUT — ลบจาก Sync
+// =====================================================
+async function doCheckout(id) {
+  if (!confirm('ยืนยันการ Check-out ชุดปฏิบัติการนี้?')) return;
+  try {
+    await SyncManager.remove(String(id));
+    if (activeRouteId === id) clearRoute();
+  } catch(e) { console.error(e); }
+}
+
+// =====================================================
+//  SIDE PANEL
+// =====================================================
+function updatePanel(data) {
+  const list  = document.getElementById('panel-list');
+  const empty = document.getElementById('panel-empty');
+  const ids   = Object.keys(data);
+
+  if (ids.length === 0) {
+    empty.style.display = 'flex';
+    list.querySelectorAll('.vehicle-card').forEach(el => el.remove());
+    return;
+  }
+  empty.style.display = 'none';
+  list.querySelectorAll('.vehicle-card').forEach(el => el.remove());
+
+  ids.forEach((id, idx) => {
+    const c = data[id];
+    const v = c.vehicle;
+    const t = new Date(c.checkinTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    const card = document.createElement('div');
+    card.className = 'vehicle-card';
+    card.id = 'vc-' + id;
+
+    const isActive = activeRouteId === id;
+
+    card.innerHTML = `
+      <div class="vc-top">
+        <span class="vc-amb-icon">
+          <svg viewBox="0 0 24 24" fill="none" width="26" height="26">
+            <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" fill="currentColor"/>
+          </svg>
+        </span>
+        <div class="vc-info">
+          <div class="vc-id">${v.id}</div>
+          <div class="vc-plate">${v.plate}</div>
+        </div>
+        <span class="vc-als">${v.level}</span>
+      </div>
+      <div class="vc-ops">${(c.operators||[]).map(o=>`<span>${o.avatar||'👤'} ${o.name.split(' ')[0]}</span>`).join('')}</div>
+      <div class="vc-time">⏱ Check-in ${t} น.</div>
+      <div class="vc-actions">
+        <button class="btn-route ${isActive?'active':''}" onclick="event.stopPropagation();handleRoute('${id}',${v.lat},${v.lng})">
+          ${isActive ? '✕ ยกเลิกสั่งการ' : '🗺 สั่งการ'}
+        </button>
+        <button class="btn-co" onclick="event.stopPropagation();doCheckout('${id}')">🔴 Check-out</button>
+      </div>`;
+
+    card.onclick = () => {
+      mapInstance.flyTo([v.lat, v.lng], 14, { duration: 1 });
+      markers[id]?.openPopup();
+    };
+    list.appendChild(card);
+  });
+}
+
+function handleRoute(id, lat, lng) {
+  if (activeRouteId === id) {
+    clearRoute();
+    updatePanel(checkins);
+  } else {
+    drawRoute(id, lat, lng).then(() => updatePanel(checkins));
+  }
+}
+
+function togglePanel() {
+  panelOpen = !panelOpen;
+  document.getElementById('side-panel').classList.toggle('collapsed', !panelOpen);
+}
+
+// =====================================================
+//  CHECKIN POPUP NOTIFICATION
+// =====================================================
+function showCheckinPopup(v) {
+  const pop = document.getElementById('checkin-popup');
+  document.getElementById('popup-title').textContent = `Check-in สำเร็จ!`;
+  document.getElementById('popup-sub').textContent   = `${v.id} • ${v.plate} • ${v.level}`;
+  pop.style.display = 'flex';
+  pop.classList.add('show');
+  setTimeout(() => { pop.classList.remove('show'); setTimeout(() => { pop.style.display='none'; }, 500); }, 4000);
+}
+
+// =====================================================
+//  CLOCK
+// =====================================================
+function startClock() {
+  function tick() {
+    const now = new Date();
+    document.getElementById('hud-clock').textContent = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    document.getElementById('hud-date').textContent  = now.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+// =====================================================
+//  QR CODE GENERATION
+// =====================================================
+function generateQR() {
+  const href = window.location.href;
+  const url  = href.includes('map.html')
+    ? href.replace('map.html', 'checkin.html')
+    : (href.replace(/\/?$/, '/') + 'checkin.html');
+
+  document.getElementById('qr-url-text').textContent = url;
+
+  const container = document.getElementById('qr-container');
+  container.innerHTML = '';
+
+  if (typeof QRCode !== 'undefined') {
+    try {
+      new QRCode(container, {
+        text: url,
+        width: 120,
+        height: 120,
+        colorDark: '#1a3a6c',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M,
+      });
+    } catch(e) {
+      container.innerHTML = `<div style="font-size:.7rem;word-break:break-all;color:#1a3a6c;padding:6px;">${url}</div>`;
+    }
+  } else {
+    container.innerHTML = `<div style="font-size:.65rem;word-break:break-all;color:#1a3a6c;padding:6px;">${url}</div>`;
+  }
+}
+
+// =====================================================
+//  BOOT
+// =====================================================
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const user = JSON.parse(sessionStorage.getItem('ems_user') || '{}');
+    isAdmin = (user.username === 'admin');
+  } catch(e) {}
+
+  initMap();
+  startClock();
+  generateQR();
+
+  try {
+    // เชื่อมต่อ Sync และฟัง checkins แบบ real-time
+    await SyncManager.init(updateMap);
+    // โหลด/สร้างจุดเกิดเหตุ
+    await initIncident();
+  } catch(e) {
+    console.error('[Map] Sync failed:', e);
+    document.getElementById('sync-error').style.display = 'block';
+  }
+});
+</script>
+</body>
+</html>

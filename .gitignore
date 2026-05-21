@@ -1,0 +1,22 @@
+# =====================================================
+#  NDEMS Demo Check-in — .gitignore
+# =====================================================
+
+# Firebase Service Account Key (NEVER commit to git)
+ndems-platform-firebase.json
+
+# Local dev overrides (ถ้าจะใส่ key จริงสำหรับ local)
+firebase-config.local.js
+
+# macOS
+.DS_Store
+.AppleDouble
+
+# Node (ถ้ามีในอนาคต)
+node_modules/
+npm-debug.log*
+
+# Editor
+.vscode/settings.json
+*.swp
+*.swo
