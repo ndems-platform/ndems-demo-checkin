@@ -81,7 +81,7 @@
               <option value="">— เลือกระดับ —</option>
               <option value="BLS">BLS</option>
               <option value="ALS">ALS</option>
-              <option value="CLS">CLS (สีเขียว)</option>
+              <option value="CLS">CLS</option>
             </select>
             <span class="sel-arr">▾</span>
           </div>
@@ -89,7 +89,8 @@
 
         <div class="field-group">
           <label class="field-label"><span class="badge-num">5</span> ตำแหน่งปัจจุบัน (เลื่อนหมุดเพื่อแก้ไข)</label>
-          <div id="checkin-map" style="height: 180px; border-radius: 8px; margin-top: 0.5rem; background: #e9ecef; z-index: 1;"></div>
+          <div id="checkin-map"
+            style="height: 180px; border-radius: 8px; margin-top: 0.5rem; background: #e9ecef; z-index: 1;"></div>
           <div id="loc-status" style="font-size: 0.75rem; color: #666; margin-top: 0.4rem;">กำลังค้นหาตำแหน่ง...</div>
         </div>
 
@@ -207,9 +208,9 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(checkinMap);
         setTimeout(() => checkinMap.invalidateSize(), 500);
       }
-      
+
       const locStatus = document.getElementById('loc-status');
-      
+
       const incident = await getIncident();
       checkinPos = { lat: incident.lat, lng: incident.lng };
       updateMarker();
