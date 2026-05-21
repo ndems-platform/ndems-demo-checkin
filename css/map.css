@@ -379,8 +379,30 @@ body:has(.side-panel.collapsed) #map { right: 0; }
   position: fixed;
   bottom: 2rem; left: 50%;
   transform: translateX(-50%) translateY(100px);
+  border-radius: 14px;
+  padding: 1rem 1.5rem;
+  display: flex; align-items: center; gap: .85rem;
+  box-shadow: 0 8px 30px rgba(0,0,0,.4);
+  z-index: 2000;
+  min-width: 280px;
+  opacity: 0;
+  transition: all .5s cubic-bezier(0.34,1.56,0.64,1);
+}
+.checkin-style {
   background: linear-gradient(135deg, var(--success), #1e7a5e);
   color: white;
+}
+.checkout-style {
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  border: 1px solid rgba(230,57,70,0.5);
+  color: white;
+}
+.checkout-style .popup-title {
+  color: #ff6b7a;
+}
+.checkout-style .popup-sub {
+  color: rgba(255,255,255,0.7);
+}
   border-radius: 14px;
   padding: 1rem 1.5rem;
   display: flex; align-items: center; gap: .85rem;
