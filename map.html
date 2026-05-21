@@ -251,22 +251,27 @@
       if (!inc) {
         inc = await new Promise(resolve => {
           if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-              pos => {
-                resolve({
-                  lat: +(pos.coords.latitude).toFixed(6),
-                  lng: +(pos.coords.longitude).toFixed(6),
-                  name: 'จุดเกิดเหตุ (พิกัดปัจจุบัน)',
-                  address: 'พิกัดจากอุปกรณ์',
-                  phone: ''
-                });
-              },
-              err => {
-                console.warn('Geolocation error:', err);
-                resolve(null);
-              },
-              { enableHighAccuracy: true, timeout: 5000 }
-            );
+            try {
+              navigator.geolocation.getCurrentPosition(
+                pos => {
+                  resolve({
+                    lat: +(pos.coords.latitude).toFixed(6),
+                    lng: +(pos.coords.longitude).toFixed(6),
+                    name: 'จุดเกิดเหตุ (พิกัดปัจจุบัน)',
+                    address: 'พิกัดจากอุปกรณ์',
+                    phone: ''
+                  });
+                },
+                err => {
+                  console.warn('Geolocation error:', err);
+                  resolve(null);
+                },
+                { enableHighAccuracy: true, timeout: 5000 }
+              );
+            } catch (err) {
+              console.warn('Geolocation exception:', err);
+              resolve(null);
+            }
           } else {
             resolve(null);
           }
