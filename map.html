@@ -23,9 +23,7 @@
         <img src="niems.png" alt="NIEMS" class="hud-logo" onerror="this.style.display='none'" />
       </div>
       <div class="hud-brand">
-        <div class="hud-title">NDEMS <span class="hud-accent">•</span> ระบบติดตามรถฉุกเฉิน <span
-            style="background:#e63946;color:white;padding:2px 6px;border-radius:4px;font-size:0.7rem;vertical-align:middle;margin-left:4px;">DEMO</span>
-        </div>
+        <div class="hud-title">NDEMS <span class="hud-accent">•</span> ระบบติดตามรถฉุกเฉิน</div>
         <div class="hud-subtitle">National Digital Emergency Medical Services</div>
       </div>
     </div>
@@ -171,6 +169,7 @@
     let activeRoute = null;
     let activeRouteId = null;
     let isAdmin = false;
+    let activeAnimation = null;
 
     // =====================================================
     //  LEAFLET MAP INIT
@@ -452,12 +451,15 @@
       const iLng = incidentPoint.lng;
 
       let routeLayer = null;
+      let routeCoords = null;
+      let routeDur = null;
       try {
         const url = `https://router.project-osrm.org/route/v1/driving/${vLng},${vLat};${iLng},${iLat}?overview=full&geometries=geojson`;
         const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
         if (res.ok) {
           const data = await res.json();
           const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+          routeCoords = coords;
           routeLayer = L.polyline(coords, {
             color: '#1a73e8',
             weight: 6,
@@ -467,16 +469,17 @@
           }).addTo(mapInstance);
 
           const dist = (data.routes[0].distance / 1000).toFixed(1);
-          const dur = Math.round(data.routes[0].duration / 60);
-          routeLayer.bindPopup(`<div class="popup-inner"><b>🛣 เส้นทาง</b><br>ระยะ ${dist} กม. • ประมาณ ${dur} นาที</div>`, { className: 'custom-popup' });
-          routeLayer.bindTooltip(`ประมาณ ${dur} นาที (${dist} กม.)`, { permanent: true, direction: 'center', className: 'route-time-tooltip' });
+          routeDur = Math.round(data.routes[0].duration / 60);
+          routeLayer.bindPopup(`<div class="popup-inner"><b>🛣 เส้นทาง</b><br>ระยะ ${dist} กม. • ประมาณ ${routeDur} นาที</div>`, { className: 'custom-popup' });
+          routeLayer.bindTooltip(`ประมาณ ${routeDur} นาที (${dist} กม.)`, { permanent: true, direction: 'center', className: 'route-time-tooltip' });
         }
       } catch (e) {
         console.warn('OSRM failed, fallback straight line', e);
       }
 
       if (!routeLayer) {
-        routeLayer = L.polyline([[vLat, vLng], [iLat, iLng]], {
+        routeCoords = [[vLat, vLng], [iLat, iLng]];
+        routeLayer = L.polyline(routeCoords, {
           color: '#1a73e8',
           weight: 5,
           opacity: 0.8,
@@ -488,11 +491,74 @@
       activeRoute = routeLayer;
       activeRouteId = checkinId;
       mapInstance.fitBounds([[vLat, vLng], [iLat, iLng]], { padding: [60, 60] });
+
+      if (routeCoords && routeCoords.length >= 2 && markers[checkinId]) {
+         animateMarkerAlongRoute(checkinId, routeCoords, routeDur);
+      }
     }
 
     function clearRoute() {
       if (activeRoute) { mapInstance.removeLayer(activeRoute); activeRoute = null; }
+      if (activeAnimation) { cancelAnimationFrame(activeAnimation); activeAnimation = null; }
+      if (activeRouteId && markers[activeRouteId] && checkins[activeRouteId]) {
+         let v = checkins[activeRouteId].vehicle;
+         markers[activeRouteId].setLatLng([v.lat, v.lng]);
+      }
       activeRouteId = null;
+    }
+
+    function animateMarkerAlongRoute(id, coords, routeDur) {
+      if (!markers[id] || coords.length < 2) return;
+      if (activeAnimation) { cancelAnimationFrame(activeAnimation); activeAnimation = null; }
+
+      let currentDistance = 0;
+      let line = turf.lineString(coords.map(c => [c[1], c[0]]));
+      let totalLength = turf.length(line, {units: 'kilometers'});
+      // 10% of total length per 2 seconds (2000 ms)
+      let speedKmPerMs = (totalLength * 0.1) / 2000; 
+      let lastTimestamp = null;
+      
+      function step(timestamp) {
+         if (!lastTimestamp) lastTimestamp = timestamp;
+         let delta = timestamp - lastTimestamp;
+         lastTimestamp = timestamp;
+
+         if (activeRouteId !== id || !markers[id]) return;
+         currentDistance += speedKmPerMs * delta;
+         
+         if (currentDistance >= totalLength) {
+             let lastCoord = coords[coords.length - 1];
+             markers[id].setLatLng(lastCoord);
+             if (activeRoute) {
+                 activeRoute.setLatLngs([lastCoord, lastCoord]);
+                 if (routeDur !== null) {
+                     activeRoute.setTooltipContent(`ถึงจุดหมายแล้ว`);
+                 }
+             }
+             return;
+         }
+         
+         let along = turf.along(line, currentDistance, {units: 'kilometers'});
+         let lng = along.geometry.coordinates[0];
+         let lat = along.geometry.coordinates[1];
+         markers[id].setLatLng([lat, lng]);
+
+         if (activeRoute) {
+             let sliced = turf.lineSliceAlong(line, currentDistance, totalLength, {units: 'kilometers'});
+             let remainingCoords = sliced.geometry.coordinates.map(c => [c[1], c[0]]);
+             activeRoute.setLatLngs(remainingCoords);
+
+             if (routeDur !== null) {
+                 let remainRatio = 1 - (currentDistance / totalLength);
+                 let remainDur = Math.max(1, Math.round(routeDur * remainRatio));
+                 let remainDist = (totalLength - currentDistance).toFixed(1);
+                 activeRoute.setTooltipContent(`ประมาณ ${remainDur} นาที (${remainDist} กม.)`);
+             }
+         }
+         
+         activeAnimation = requestAnimationFrame(step);
+      }
+      activeAnimation = requestAnimationFrame(step);
     }
 
     // =====================================================
