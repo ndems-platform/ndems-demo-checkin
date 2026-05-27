@@ -92,6 +92,11 @@
           All</button>
       </div>
     </div>
+    <div style="padding: 10px 15px; border-bottom: 1px solid rgba(255,255,255,0.1); background: #0f2b5a;">
+      <input type="text" id="sidebar-search" placeholder="🔍 ค้นหารหัส หรือ ทะเบียนรถ..." 
+        style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.95); color: #333; font-size: 0.85rem; box-sizing: border-box;"
+        oninput="filterSidebar()">
+    </div>
     <div class="panel-list" id="panel-list">
       <div class="panel-empty" id="panel-empty">
         <div class="empty-icon">🚑</div>
@@ -145,9 +150,9 @@
 
   <!-- ===== SELECT INCIDENT MODAL ===== -->
   <div id="select-inc-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
-    <div style="background:white; padding:20px; border-radius:10px; min-width:300px; box-shadow:0 4px 15px rgba(0,0,0,0.2);">
+    <div style="background:white; padding:20px; border-radius:10px; width:90%; max-width:500px; box-shadow:0 4px 15px rgba(0,0,0,0.2);">
       <h3 style="margin-top:0; color:#1a3a6c;">เลือกจุดเกิดเหตุเป้าหมาย</h3>
-      <div id="select-inc-list" style="display:flex; flex-direction:column; gap:10px; margin:15px 0; max-height:200px; overflow-y:auto;"></div>
+      <div id="select-inc-list" style="display:flex; flex-direction:column; gap:10px; margin:15px 0; max-height:60vh; overflow-y:auto;"></div>
       <div style="text-align:right;">
         <button onclick="document.getElementById('select-inc-modal').style.display='none'" style="padding:8px 15px; border:none; border-radius:5px; cursor:pointer; background:#ddd;">ยกเลิก</button>
       </div>
@@ -406,7 +411,7 @@
           className: '',
         });
 
-        incidentMarkers[incId] = L.marker([lat, lng], { icon: incIcon, zIndexOffset: 1000 })
+        const marker = L.marker([lat, lng], { icon: incIcon, draggable: true, zIndexOffset: 1000 })
           .addTo(mapInstance)
           .bindPopup(`
         <div class="popup-inner">
@@ -419,6 +424,26 @@
           </table>
           <button class="btn-co" style="width:100%;margin-top:0.75rem;padding:0.4rem;font-size:0.75rem;border-radius:6px;" onclick="removeIncident('${incId}')">❌ ลบจุดนี้</button>
         </div>`, { maxWidth: 260, className: 'custom-popup' });
+
+        marker.on('dragend', async function(e) {
+          const pos = marker.getLatLng();
+          inc.lat = pos.lat;
+          inc.lng = pos.lng;
+          
+          if (incidentCircles[incId]) {
+            incidentCircles[incId].setLatLng(pos);
+          }
+          
+          try {
+            await SyncManager.saveIncident(incidentPoints);
+            updateIncidentBar(); // refresh sidebar if needed
+            marker.getPopup().setContent(marker.getPopup().getContent().replace(/พิกัด<\/td><td><b>.*?<\/b><\/td>/, `พิกัด</td><td><b>${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}</b></td>`));
+          } catch (err) {
+            console.error('Failed to sync incident location', err);
+          }
+        });
+
+        incidentMarkers[incId] = marker;
         
         bounds.extend([lat, lng]);
       });
@@ -585,8 +610,11 @@
       let currentDistance = 0;
       let line = turf.lineString(coords.map(c => [c[1], c[0]]));
       let totalLength = turf.length(line, {units: 'kilometers'});
-      // 1% of total length per 1 second (1000 ms)
-      let speedKmPerMs = (totalLength * 0.01) / 1000; 
+      // จำลองความเร็วรถ 80 กม./ชม. (เร่งเวลาการจำลอง 60 เท่าเพื่อให้เหมาะกับการ Demo)
+      // ระยะทางใกล้ = ใช้เวลาน้อย, ระยะทางไกล = ใช้เวลามาก
+      let simulatedSpeedKmh = 80;
+      let timeMultiplier = 1; // 1 เท่า (เวลาจริง 100%) รถวิ่ง 80 กม./ชม. ของจริง
+      let speedKmPerMs = (simulatedSpeedKmh * timeMultiplier) / 3600000;
       let lastTimestamp = null;
       
       function step(timestamp) {
@@ -600,12 +628,18 @@
          if (currentDistance >= totalLength) {
              let lastCoord = coords[coords.length - 1];
              markers[id].setLatLng(lastCoord);
-             if (activeRoute) {
-                 activeRoute.setLatLngs([lastCoord, lastCoord]);
-                 if (routeDur !== null) {
-                     activeRoute.setTooltipContent(`ถึงจุดหมายแล้ว`);
-                 }
+             
+             // Update the vehicle's position to the destination
+             if (checkins[id]) {
+                 checkins[id].vehicle.lat = lastCoord[0];
+                 checkins[id].vehicle.lng = lastCoord[1];
+                 // Save the new location so it persists for everyone
+                 SyncManager.save(checkins[id]).catch(e => console.error(e));
              }
+             
+             // Clear the active route to finish the command gracefully
+             clearRoute();
+             updatePanel(checkins);
              return;
          }
          
@@ -660,14 +694,36 @@
 
         if (!markers[id]) {
           const icon = makeAmbulanceIcon(v.plate, v.level, idx);
-          const marker = L.marker([v.lat, v.lng], { icon })
+          const marker = L.marker([v.lat, v.lng], { icon, draggable: true })
             .addTo(mapInstance)
             .bindPopup(makePopupContent(c), { maxWidth: 270, className: 'custom-popup' });
+            
+          marker.on('dragstart', () => {
+            if (activeRouteId === id) clearRoute(); // Cancel active routing if admin drags it
+          });
+          
+          marker.on('dragend', async function(e) {
+            const pos = marker.getLatLng();
+            c.vehicle.lat = pos.lat;
+            c.vehicle.lng = pos.lng;
+            try {
+              await SyncManager.save(c);
+            } catch (err) {
+              console.error('Failed to sync new vehicle position', err);
+            }
+          });
+
           markers[id] = marker;
 
           if (!lastKnownIds.has(id)) {
             showCheckinPopup(v);
           }
+        } else {
+          // If marker already exists, update its position if it changed remotely and not currently animating
+          if (activeRouteId !== id) {
+            markers[id].setLatLng([v.lat, v.lng]);
+          }
+          markers[id].setPopupContent(makePopupContent(c));
         }
         idx++;
       });
@@ -686,6 +742,8 @@
       const v = c.vehicle;
       const ops = (c.operators || []).map(o => `<div class="popup-op">${o.avatar || '👤'} ${o.role}: ${o.name}</div>`).join('');
       const t = new Date(c.checkinTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+      const isActive = activeRouteId === c.id;
+      
       return `
     <div class="popup-inner">
       <div class="popup-vehicle-id">${v.id}</div>
@@ -697,7 +755,8 @@
       </table>
       <div class="popup-ops-label">ผู้ปฏิบัติการ (${(c.operators || []).length} ท่าน)</div>
       <div class="popup-ops-list">${ops || 'ไม่มี'}</div>
-      <button class="btn-co" style="width:100%;margin-top:0.75rem;padding:0.4rem;font-size:0.75rem;border-radius:6px;" onclick="doCheckout('${c.checkinId}')">🔴 Check-out</button>
+      <button style="width:100%;margin-top:0.75rem;padding:0.4rem;font-size:0.75rem;border-radius:6px;background:${isActive ? '#fff' : '#1a73e8'};border:1px solid ${isActive ? '#e63946' : '#1a73e8'};color:${isActive ? '#e63946' : 'white'};cursor:pointer;font-weight:bold;" onclick="handleRoute('${c.id}', ${v.lat}, ${v.lng}); mapInstance.closePopup();">${isActive ? '✕ ยกเลิกสั่งการ' : '🗺 สั่งการไปที่จุดเกิดเหตุ'}</button>
+      <button class="btn-co" style="width:100%;margin-top:0.4rem;padding:0.4rem;font-size:0.75rem;border-radius:6px;" onclick="doCheckout('${c.id}')">🔴 Check-out ชุดนี้</button>
     </div>`;
     }
 
@@ -793,6 +852,20 @@
           markers[id]?.openPopup();
         };
         list.appendChild(card);
+      });
+      filterSidebar(); // Re-apply filter after updating the list
+    }
+
+    function filterSidebar() {
+      const term = (document.getElementById('sidebar-search')?.value || '').toLowerCase();
+      const cards = document.querySelectorAll('.vehicle-card');
+      cards.forEach(card => {
+        const text = card.textContent.toLowerCase();
+        if (text.includes(term)) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
+        }
       });
     }
 
