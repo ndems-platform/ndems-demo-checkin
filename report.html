@@ -43,12 +43,16 @@
       </div>
       <div class="card-body">
         <div class="field-group">
-          <label class="field-label" for="inp-phone"><span class="badge-num">1</span> เบอร์โทรศัพท์ติดต่อ</label>
+          <label class="field-label" for="inp-name"><span class="badge-num">1</span> ชื่อจุดเกิดเหตุ</label>
+          <input type="text" id="inp-name" class="inp" placeholder="เช่น อุบัติเหตุบนถนนเพชรเกษม" oninput="checkForm()" />
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="inp-phone"><span class="badge-num">2</span> เบอร์โทรศัพท์ติดต่อ</label>
           <input type="tel" id="inp-phone" class="inp" placeholder="08XXXXXXXX" autocomplete="tel" oninput="checkForm()" />
         </div>
 
         <div class="field-group">
-          <label class="field-label"><span class="badge-num">2</span> ตำแหน่งจุดเกิดเหตุ (เลื่อนหมุดบนแผนที่เพื่อแก้ไข)</label>
+          <label class="field-label"><span class="badge-num">3</span> ตำแหน่งจุดเกิดเหตุ (เลื่อนหมุดบนแผนที่เพื่อแก้ไข)</label>
           <div id="checkin-map"
             style="height: 250px; border-radius: 8px; margin-top: 0.5rem; background: #e9ecef; z-index: 1;"></div>
           <div id="loc-status" style="font-size: 0.75rem; color: #666; margin-top: 0.4rem;">กำลังค้นหาตำแหน่ง...</div>
@@ -78,36 +82,46 @@
     let checkinMap = null;
     let checkinMarker = null;
     let checkinPos = { lat: 14.0182, lng: 99.9584 };
+    let gotGPS = false;
 
     function initCheckinMap() {
       if (!checkinMap) {
         checkinMap = L.map('checkin-map').setView([14.0182, 99.9584], 6);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(checkinMap);
         setTimeout(() => checkinMap.invalidateSize(), 500);
+        
+        // Allow clicking on map to reposition marker
+        checkinMap.on('click', function(e) {
+          checkinPos = { lat: e.latlng.lat, lng: e.latlng.lng };
+          updateMarker();
+          document.getElementById('loc-status').textContent = '📍 เลือกตำแหน่งใหม่แล้ว (คลิกหรือลากหมุดเพื่อเปลี่ยน)';
+        });
       }
+
+      // Show marker immediately at default position
+      updateMarker();
 
       const locStatus = document.getElementById('loc-status');
 
       if (navigator.geolocation) {
-        locStatus.textContent = '📍 กำลังขอตำแหน่งของคุณ...';
+        locStatus.textContent = '📍 กำลังขอตำแหน่ง GPS ของคุณ...';
         navigator.geolocation.getCurrentPosition(
           (pos) => {
+            gotGPS = true;
             checkinPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
             updateMarker();
-            checkinMap.setView([checkinPos.lat, checkinPos.lng], 15);
-            locStatus.textContent = '✅ ปักหมุดที่ตำแหน่งปัจจุบันของคุณแล้ว (สามารถเลื่อนหมุดเพื่อแก้ไขได้)';
+            checkinMap.setView([checkinPos.lat, checkinPos.lng], 16);
+            locStatus.textContent = `✅ ปักหมุดที่ตำแหน่ง GPS แล้ว (${checkinPos.lat.toFixed(5)}, ${checkinPos.lng.toFixed(5)}) — คลิกหรือลากหมุดเพื่อแก้ไข`;
           },
           (err) => {
-            locStatus.textContent = '⚠️ ไม่สามารถดึงตำแหน่งได้ (คุณสามารถเลื่อนหมุดเองได้)';
-            checkinMap.setView([checkinPos.lat, checkinPos.lng], 13);
-            updateMarker();
+            locStatus.innerHTML = '⚠️ ไม่สามารถดึงตำแหน่ง GPS ได้ — <b>คลิกบนแผนที่</b>หรือลากหมุดเพื่อระบุตำแหน่งเอง';
+            checkinMap.setView([checkinPos.lat, checkinPos.lng], 10);
           },
-          { enableHighAccuracy: true, timeout: 5000 }
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
       } else {
-        locStatus.textContent = '⚠️ เบราว์เซอร์ไม่รองรับการดึงตำแหน่ง โปรดเลื่อนหมุดเอง';
-        checkinMap.setView([checkinPos.lat, checkinPos.lng], 13);
-        updateMarker();
+        locStatus.innerHTML = '⚠️ เบราว์เซอร์ไม่รองรับ GPS — <b>คลิกบนแผนที่</b>หรือลากหมุดเพื่อระบุตำแหน่ง';
+        checkinMap.setView([checkinPos.lat, checkinPos.lng], 10);
       }
     }
 
@@ -119,7 +133,7 @@
         checkinMarker.on('dragend', function (e) {
           const pos = checkinMarker.getLatLng();
           checkinPos = { lat: pos.lat, lng: pos.lng };
-          document.getElementById('loc-status').textContent = '📍 เลือกตำแหน่งใหม่แล้ว';
+          document.getElementById('loc-status').textContent = `📍 เลือกตำแหน่งใหม่แล้ว (${checkinPos.lat.toFixed(5)}, ${checkinPos.lng.toFixed(5)})`;
         });
       }
     }
@@ -148,8 +162,9 @@
     });
 
     function checkForm() {
+      const name = document.getElementById('inp-name').value.trim();
       const phone = document.getElementById('inp-phone').value.trim();
-      document.getElementById('btn-submit').disabled = !phone;
+      document.getElementById('btn-submit').disabled = !(name && phone);
     }
 
     // ── REPORT ──
@@ -159,17 +174,26 @@
       btn.innerHTML = '<span class="spin">⏳</span> กำลังบันทึก…';
 
       try {
+        const incName = document.getElementById('inp-name').value.trim();
         const phone = document.getElementById('inp-phone').value.trim();
-        const inc = {
-          lat: checkinPos.lat,
-          lng: checkinPos.lng,
-          name: 'ผู้แจ้งเหตุฉุกเฉิน',
+        const newInc = {
+          id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
+          lat: +(checkinPos.lat).toFixed(6),
+          lng: +(checkinPos.lng).toFixed(6),
+          name: incName,
           address: 'รับแจ้งผ่านระบบแจ้งเหตุ',
           phone: phone,
           time: Date.now()
         };
 
-        await SyncManager.saveIncident(inc);
+        // ดึงข้อมูลจุดเกิดเหตุเดิม แล้ว append เข้าไป
+        let existing = await SyncManager.getIncident();
+        let incArray = [];
+        if (existing) {
+          incArray = Array.isArray(existing) ? existing : [existing];
+        }
+        incArray.push(newInc);
+        await SyncManager.saveIncident(incArray);
 
         // ✅ Show success
         document.getElementById('step-1').style.display = 'none';
@@ -185,6 +209,7 @@
     }
 
     function resetForm() {
+      document.getElementById('inp-name').value = '';
       document.getElementById('inp-phone').value = '';
       document.getElementById('btn-submit').disabled = true;
       document.getElementById('btn-submit').innerHTML = 'แจ้งเหตุฉุกเฉิน';

@@ -86,8 +86,7 @@
         ชุดปฏิบัติการ
       </div>
       <div style="margin-left:auto; display:flex; gap:0.4rem; align-items:center;">
-        <span class="incident-badge" id="incident-badge" title="จุดเกิดเหตุ" style="margin-left:0;">🔴
-          เหตุฉุกเฉิน</span>
+        <span class="incident-badge" id="btn-add-inc" title="เพิ่มจุดเกิดเหตุ" style="margin-left:0; cursor:pointer;" onclick="addIncidentPoint()">+ เพิ่มจุด</span>
         <button onclick="checkoutAll()"
           style="background:rgba(230,57,70,0.15); color:#e63946; border:1px solid rgba(230,57,70,0.4); border-radius:50px; padding:0.15rem 0.55rem; font-size:0.62rem; font-weight:700; cursor:pointer; white-space:nowrap;">Checkout
           All</button>
@@ -102,15 +101,14 @@
     
     <!-- ===== INCIDENT INFO PANEL (Moved to Sidebar Bottom) ===== -->
     <div class="incident-info-bar" id="incident-info-bar">
-      <div style="display:flex; flex-direction:column; gap:6px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; align-items:flex-start;">
-        <span id="inc-label">📍 จุดเกิดเหตุ: กำลังโหลด…</span>
-        <span class="inc-dist" id="inc-dist" style="display:none;"></span>
+      <div id="inc-list-container" style="display:flex; flex-direction:column; gap:6px; flex:1; overflow-y:auto; max-height:150px; text-overflow:ellipsis; white-space:nowrap; align-items:flex-start; width: 100%;">
+        <span id="inc-label">✅ ไม่มีเหตุฉุกเฉินในขณะนี้</span>
       </div>
-      <button id="btn-close-inc" class="btn-end-mission" onclick="closeIncident()" style="width:100%; justify-content:center; margin-top:0.8rem;">
+      <button id="btn-close-inc" class="btn-end-mission" onclick="closeAllIncidents()" style="width:100%; justify-content:center; margin-top:0.8rem; display:none;">
         <svg viewBox="0 0 24 24" fill="none" width="16" height="16" style="margin-top:-1px;">
           <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
         </svg>
-        จบภารกิจ
+        ล้างจุดเกิดเหตุทั้งหมด
       </button>
     </div>
   </aside>
@@ -121,8 +119,6 @@
       <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" fill="currentColor" />
     </svg>
   </button>
-
-  <!-- ===== TOGGLE PANEL BTN ===== -->
 
   <!-- ===== SYNC ERROR BANNER ===== -->
   <div class="firebase-error" id="sync-error" style="display:none;">
@@ -147,6 +143,29 @@
     </div>
   </div>
 
+  <!-- ===== SELECT INCIDENT MODAL ===== -->
+  <div id="select-inc-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:white; padding:20px; border-radius:10px; min-width:300px; box-shadow:0 4px 15px rgba(0,0,0,0.2);">
+      <h3 style="margin-top:0; color:#1a3a6c;">เลือกจุดเกิดเหตุเป้าหมาย</h3>
+      <div id="select-inc-list" style="display:flex; flex-direction:column; gap:10px; margin:15px 0; max-height:200px; overflow-y:auto;"></div>
+      <div style="text-align:right;">
+        <button onclick="document.getElementById('select-inc-modal').style.display='none'" style="padding:8px 15px; border:none; border-radius:5px; cursor:pointer; background:#ddd;">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ADD INCIDENT MODAL ===== -->
+  <div id="add-inc-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:white; padding:20px; border-radius:10px; min-width:300px; box-shadow:0 4px 15px rgba(0,0,0,0.2);">
+      <h3 style="margin-top:0; color:#1a3a6c;">ตั้งชื่อจุดเกิดเหตุ</h3>
+      <input type="text" id="add-inc-name" placeholder="ระบุชื่อจุดเกิดเหตุ..." style="width:100%; padding:10px; margin:15px 0; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+      <div style="text-align:right; display:flex; gap:10px; justify-content:flex-end;">
+        <button onclick="cancelAddIncident()" style="padding:8px 15px; border:none; border-radius:5px; cursor:pointer; background:#ddd;">ยกเลิก</button>
+        <button onclick="confirmAddIncident()" style="padding:8px 15px; border:none; border-radius:5px; cursor:pointer; background:#1a73e8; color:white;">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== LEAFLET + QR + MQTT ===== -->
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -163,9 +182,9 @@
     let mapInstance;
     let panelOpen = true;
     let lastKnownIds = new Set();
-    let incidentPoint = null;
-    let incidentMarker = null;
-    let incidentCircle = null;
+    let incidentPoints = [];
+    let incidentMarkers = {};
+    let incidentCircles = {};
     let activeRoute = null;
     let activeRouteId = null;
     let isAdmin = false;
@@ -241,166 +260,221 @@
         .catch(e => console.warn('[Mask] GeoJSON load failed, using bbox fallback', e));
     }
 
-    // =====================================================
-    //  INCIDENT POINT — โหลดจาก MQTT, สร้างถ้าไม่มี
-    // =====================================================
     async function initIncident() {
-      let inc = await SyncManager.getIncident();
-
-      if (!inc) {
-        inc = await new Promise(resolve => {
-          if (navigator.geolocation) {
-            try {
-              navigator.geolocation.getCurrentPosition(
-                pos => {
-                  resolve({
-                    lat: +(pos.coords.latitude).toFixed(6),
-                    lng: +(pos.coords.longitude).toFixed(6),
-                    name: 'จุดเกิดเหตุ (พิกัดปัจจุบัน)',
-                    address: 'พิกัดจากอุปกรณ์',
-                    phone: ''
-                  });
-                },
-                err => {
-                  console.warn('Geolocation error:', err);
-                  resolve(null);
-                },
-                { enableHighAccuracy: true, timeout: 5000 }
-              );
-            } catch (err) {
-              console.warn('Geolocation exception:', err);
-              resolve(null);
-            }
-          } else {
-            resolve(null);
-          }
+      let incData = await SyncManager.getIncident();
+      
+      if (incData) {
+        incidentPoints = Array.isArray(incData) ? incData : [incData];
+        // ensure each point has an id
+        incidentPoints = incidentPoints.map((inc, idx) => {
+          if (!inc.id) inc.id = idx.toString() + '_' + Date.now();
+          return inc;
         });
-
-        if (!inc) {
-          const baseLat = 14.0182;
-          const baseLng = 99.9584;
-          const maxR = 0.065, minR = 0.025;
-          const angle = Math.random() * Math.PI * 2;
-          const dist = minR + Math.random() * (maxR - minR);
-          inc = {
-            lat: +(baseLat + dist * Math.sin(angle)).toFixed(6),
-            lng: +(baseLng + dist * Math.cos(angle)).toFixed(6),
-            name: 'จุดเกิดเหตุ (สุ่ม)',
-            address: 'ถ.กำแพงแสน อ.กำแพงแสน จ.นครปฐม',
-          };
-        }
-        await SyncManager.saveIncident(inc);
+      } else {
+        incidentPoints = [];
       }
 
-      incidentPoint = inc;
-      drawIncident();
+      drawIncidents();
       updateIncidentBar();
       if (Object.keys(checkins).length > 0) updatePanel(checkins);
 
-      // ฟังการเปลี่ยนแปลงแบบ realtime
       SyncManager.watchIncident((newInc) => {
-        if (!newInc) return;
-        incidentPoint = newInc;
-        drawIncident();
+        if (!newInc) {
+          incidentPoints = [];
+        } else {
+          incidentPoints = Array.isArray(newInc) ? newInc : [newInc];
+        }
+        drawIncidents();
         updateIncidentBar();
         if (Object.keys(checkins).length > 0) updatePanel(checkins);
       });
     }
 
-    function drawIncident() {
-      if (incidentMarker) { mapInstance.removeLayer(incidentMarker); incidentMarker = null; }
-      if (incidentCircle) { mapInstance.removeLayer(incidentCircle); incidentCircle = null; }
+    let isAddingIncident = false;
 
-      if (!incidentPoint) {
+    function addIncidentPoint() {
+      if (isAddingIncident) {
+        // Turn off mode
+        isAddingIncident = false;
+        document.getElementById('map').style.cursor = '';
+        mapInstance.off('click', handleMapClick);
+        showToast("🛑 ออกจากโหมดเพิ่มจุดเกิดเหตุ");
+        document.getElementById('btn-add-inc').innerHTML = "+ เพิ่มจุด";
+        return;
+      }
+      
+      // Turn on mode
+      isAddingIncident = true;
+      document.getElementById('map').style.cursor = 'crosshair';
+      showToast("📍 โหมดเพิ่มจุด: คลิกบนแผนที่เพื่อปักหมุด (สามารถคลิกปักได้เรื่อยๆ)");
+      document.getElementById('btn-add-inc').innerHTML = "ออกโหมดเพิ่มจุด";
+      mapInstance.on('click', handleMapClick);
+    }
+    
+    let pendingIncEvent = null;
+
+    async function handleMapClick(e) {
+      pendingIncEvent = e;
+      document.getElementById('add-inc-name').value = '';
+      document.getElementById('add-inc-modal').style.display = 'flex';
+      setTimeout(() => document.getElementById('add-inc-name').focus(), 100);
+    }
+    
+    function cancelAddIncident() {
+      document.getElementById('add-inc-modal').style.display = 'none';
+      pendingIncEvent = null;
+      showToast("❌ ข้ามการเพิ่มจุด");
+    }
+
+    async function confirmAddIncident() {
+      const name = document.getElementById('add-inc-name').value.trim();
+      if (!name) {
+        showToast("⚠️ กรุณาระบุชื่อจุดเกิดเหตุ");
+        return;
+      }
+      
+      document.getElementById('add-inc-modal').style.display = 'none';
+      
+      if (!pendingIncEvent) return;
+      const e = pendingIncEvent;
+      pendingIncEvent = null;
+      
+      const lat = e.latlng.lat;
+      const lng = e.latlng.lng;
+      
+      const newInc = {
+        id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
+        lat: +(lat).toFixed(6),
+        lng: +(lng).toFixed(6),
+        name: name,
+        address: 'พิกัดที่ระบุบนแผนที่',
+        phone: ''
+      };
+      
+      incidentPoints.push(newInc);
+      await SyncManager.saveIncident(incidentPoints);
+      showToast(`✅ เพิ่มจุด "${name}" เรียบร้อย`);
+    }
+    
+    function showToast(msg) {
+      let t = document.getElementById('map-toast');
+      if (!t) {
+        t = document.createElement('div');
+        t.id = 'map-toast';
+        t.style.cssText = "position:fixed; top:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:white; padding:10px 20px; border-radius:50px; z-index:9999; font-weight:bold; transition: opacity 0.3s; opacity:0; pointer-events:none;";
+        document.body.appendChild(t);
+      }
+      t.textContent = msg;
+      t.style.opacity = '1';
+      setTimeout(() => { t.style.opacity = '0'; }, 3000);
+    }
+
+    function drawIncidents() {
+      Object.keys(incidentMarkers).forEach(id => mapInstance.removeLayer(incidentMarkers[id]));
+      Object.keys(incidentCircles).forEach(id => mapInstance.removeLayer(incidentCircles[id]));
+      incidentMarkers = {};
+      incidentCircles = {};
+
+      if (!incidentPoints || incidentPoints.length === 0) {
         if (activeRoute) clearRoute();
         return;
       }
 
-      const { lat, lng } = incidentPoint;
+      const bounds = L.latLngBounds();
 
-      incidentCircle = L.circle([lat, lng], {
-        radius: 10000,
-        color: '#e63946',
-        fillColor: '#e63946',
-        fillOpacity: 0.05,
-        weight: 2,
-        dashArray: '6 4',
-      }).addTo(mapInstance);
+      incidentPoints.forEach((inc, idx) => {
+        const { id, lat, lng, name, address, phone } = inc;
+        const incId = id || idx.toString();
+        
+        incidentCircles[incId] = L.circle([lat, lng], {
+          radius: 10000,
+          color: '#e63946',
+          fillColor: '#e63946',
+          fillOpacity: 0.05,
+          weight: 2,
+          dashArray: '6 4',
+        }).addTo(mapInstance);
 
-      const incIcon = L.divIcon({
-        html: `<div class="inc-marker-wrap">
-             <div class="inc-marker-pin"></div>
-             <div class="inc-marker-label">จุดเกิดเหตุ</div>
-           </div>`,
-        iconSize: [50, 50],
-        iconAnchor: [25, 25],
-        popupAnchor: [0, -25],
-        className: '',
+        const incIcon = L.divIcon({
+          html: `<div class="inc-marker-wrap">
+               <div class="inc-marker-pin"></div>
+               <div class="inc-marker-label">${name || 'จุดเกิดเหตุ'}</div>
+             </div>`,
+          iconSize: [50, 50],
+          iconAnchor: [25, 25],
+          popupAnchor: [0, -25],
+          className: '',
+        });
+
+        incidentMarkers[incId] = L.marker([lat, lng], { icon: incIcon, zIndexOffset: 1000 })
+          .addTo(mapInstance)
+          .bindPopup(`
+        <div class="popup-inner">
+          <div class="popup-vehicle-id" style="color:#e63946;">🚨 ${name || 'จุดเกิดเหตุฉุกเฉิน'}</div>
+          <table class="popup-table">
+            <tr><td>พิกัด</td><td><b>${lat.toFixed(4)}, ${lng.toFixed(4)}</b></td></tr>
+            <tr><td>ที่อยู่</td><td><b>${address}</b></td></tr>
+            ${phone ? `<tr><td>เบอร์โทร</td><td><b>${phone}</b></td></tr>` : ''}
+            <tr><td>รัศมีครอบคลุม</td><td><b>10 กม.</b></td></tr>
+          </table>
+          <button class="btn-co" style="width:100%;margin-top:0.75rem;padding:0.4rem;font-size:0.75rem;border-radius:6px;" onclick="removeIncident('${incId}')">❌ ลบจุดนี้</button>
+        </div>`, { maxWidth: 260, className: 'custom-popup' });
+        
+        bounds.extend([lat, lng]);
       });
-
-      incidentMarker = L.marker([lat, lng], { icon: incIcon, zIndexOffset: 1000 })
-        .addTo(mapInstance)
-        .bindPopup(`
-      <div class="popup-inner">
-        <div class="popup-vehicle-id" style="color:#e63946;">🚨 ${incidentPoint.name || 'จุดเกิดเหตุฉุกเฉิน'}</div>
-        <table class="popup-table">
-          <tr><td>พิกัด</td><td><b>${lat.toFixed(4)}, ${lng.toFixed(4)}</b></td></tr>
-          <tr><td>ที่อยู่</td><td><b>${incidentPoint.address}</b></td></tr>
-          ${incidentPoint.phone ? `<tr><td>เบอร์โทร</td><td><b>${incidentPoint.phone}</b></td></tr>` : ''}
-          <tr><td>รัศมีครอบคลุม</td><td><b>10 กม.</b></td></tr>
-        </table>
-      </div>`, { maxWidth: 260, className: 'custom-popup' });
-
-      mapInstance.flyTo([lat, lng], 11, { duration: 1.2 });
+      
+      if (incidentPoints.length > 0) {
+        mapInstance.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
+      }
     }
 
     function updateIncidentBar() {
-      if (!incidentPoint) {
-        document.getElementById('inc-label').innerHTML = '✅ ไม่มีเหตุฉุกเฉินในขณะนี้';
+      const container = document.getElementById('inc-list-container');
+      container.innerHTML = '';
+      
+      if (!incidentPoints || incidentPoints.length === 0) {
+        container.innerHTML = '<span id="inc-label">✅ ไม่มีเหตุฉุกเฉินในขณะนี้</span>';
         document.getElementById('btn-close-inc').style.display = 'none';
-        document.getElementById('incident-badge').style.display = 'none';
         return;
       }
+      
       document.getElementById('btn-close-inc').style.display = 'flex';
-      document.getElementById('incident-badge').style.display = 'inline-block';
 
-      let phoneHtml = incidentPoint.phone ? ` <span style="color:var(--gold); font-weight:700; display:block; margin-top:4px;">📞 ${incidentPoint.phone}</span>` : '';
-      document.getElementById('inc-label').innerHTML =
-        `<div style="color:var(--accent); font-weight:700; margin-bottom:4px; display:flex; align-items:center; gap:6px;"><span class="inc-pulse" id="inc-pulse-dot" style="display:inline-block;"></span>🚨 ${incidentPoint.name || 'จุดเกิดเหตุ'}</div><div style="color:rgba(255,255,255,0.7); font-weight:400; font-size:0.9em; white-space:normal; line-height:1.4;">${incidentPoint.address}</div>${phoneHtml}`;
+      incidentPoints.forEach((inc, idx) => {
+        const item = document.createElement('div');
+        item.style.cssText = "display:flex; justify-content:space-between; align-items:center; width:100%; padding-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:6px;";
+        
+        let phoneHtml = inc.phone ? ` <span style="color:var(--gold); font-weight:700; font-size:0.85em; display:block;">📞 ${inc.phone}</span>` : '';
+        item.innerHTML = `
+          <div style="flex:1; overflow:hidden; text-overflow:ellipsis;">
+            <div style="color:var(--accent); font-weight:700; margin-bottom:2px; display:flex; align-items:center; gap:6px; font-size:0.95em;">
+              <span class="inc-pulse" id="inc-pulse-dot" style="display:inline-block; width:8px; height:8px;"></span>
+              🚨 ${inc.name || 'จุดเกิดเหตุ'}
+            </div>
+            <div style="color:rgba(255,255,255,0.7); font-weight:400; font-size:0.8em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${inc.address}</div>
+            ${phoneHtml}
+          </div>
+          <button onclick="removeIncident('${inc.id || idx}')" style="background:none; border:none; color:#ff4d4f; cursor:pointer; font-size:1.1em; padding:4px;" title="ลบ">✕</button>
+        `;
+        container.appendChild(item);
+      });
     }
 
-    async function closeIncident() {
-      if (!confirm('ยืนยันการปิดงาน และล้างจุดเกิดเหตุบนแผนที่?')) return;
+    async function removeIncident(targetId) {
+      if (!confirm('ยืนยันการลบจุดเกิดเหตุนี้?')) return;
+      incidentPoints = incidentPoints.filter((inc, idx) => (inc.id || idx.toString()) !== targetId);
+      if (activeRoute && incidentPoints.length === 0) clearRoute();
+      try {
+        await SyncManager.saveIncident(incidentPoints.length > 0 ? incidentPoints : null);
+      } catch (e) { console.error(e); }
+    }
+
+    async function closeAllIncidents() {
+      if (!confirm('ยืนยันล้างจุดเกิดเหตุทั้งหมด?')) return;
       try {
         await SyncManager.saveIncident(null);
         clearRoute();
-      } catch (e) { console.error('Failed to clear incident', e); }
-
-      // ── ดึงพิกัดปัจจุบัน แล้วปักจุดใหม่ ──
-      const newInc = await new Promise(resolve => {
-        if (!navigator.geolocation) { resolve(null); return; }
-        try {
-          navigator.geolocation.getCurrentPosition(
-            pos => resolve({
-              lat: +(pos.coords.latitude).toFixed(6),
-              lng: +(pos.coords.longitude).toFixed(6),
-              name: 'จุดเกิดเหตุ (พิกัดปัจจุบัน)',
-              address: 'พิกัดจากอุปกรณ์',
-              phone: ''
-            }),
-            err => { console.warn('Geolocation error:', err); resolve(null); },
-            { enableHighAccuracy: true, timeout: 5000 }
-          );
-        } catch (err) { resolve(null); }
-      });
-
-      if (newInc) {
-        try { await SyncManager.saveIncident(newInc); } catch (e) {}
-        incidentPoint = newInc;
-        drawIncident();
-        updateIncidentBar();
-        mapInstance.flyTo([newInc.lat, newInc.lng], 13, { duration: 1.2 });
-      }
+      } catch (e) { console.error('Failed to clear incidents', e); }
     }
 
     // =====================================================
@@ -443,12 +517,9 @@
     // =====================================================
     //  ROUTE: vehicle → incident
     // =====================================================
-    async function drawRoute(checkinId, vLat, vLng) {
+    async function drawRoute(checkinId, vLat, vLng, iLat, iLng) {
       clearRoute();
-      if (!incidentPoint) return;
-
-      const iLat = incidentPoint.lat;
-      const iLng = incidentPoint.lng;
+      if (typeof iLat === 'undefined' || typeof iLng === 'undefined') return;
 
       let routeLayer = null;
       let routeCoords = null;
@@ -514,8 +585,8 @@
       let currentDistance = 0;
       let line = turf.lineString(coords.map(c => [c[1], c[0]]));
       let totalLength = turf.length(line, {units: 'kilometers'});
-      // 10% of total length per 2 seconds (2000 ms)
-      let speedKmPerMs = (totalLength * 0.1) / 2000; 
+      // 1% of total length per 1 second (1000 ms)
+      let speedKmPerMs = (totalLength * 0.01) / 1000; 
       let lastTimestamp = null;
       
       function step(timestamp) {
@@ -664,8 +735,8 @@
       const empty = document.getElementById('panel-empty');
 
       let ids = Object.keys(data);
-      if (incidentPoint && typeof turf !== 'undefined') {
-        const iPoint = turf.point([incidentPoint.lng, incidentPoint.lat]);
+      if (incidentPoints && incidentPoints.length > 0 && typeof turf !== 'undefined') {
+        const iPoint = turf.point([incidentPoints[0].lng, incidentPoints[0].lat]);
         ids.sort((a, b) => {
           const pA = turf.point([data[a].vehicle.lng, data[a].vehicle.lat]);
           const pB = turf.point([data[b].vehicle.lng, data[b].vehicle.lat]);
@@ -714,8 +785,8 @@
       </div>`;
 
         card.onclick = () => {
-          if (incidentPoint) {
-            mapInstance.fitBounds([[v.lat, v.lng], [incidentPoint.lat, incidentPoint.lng]], { padding: [60, 60], duration: 1 });
+          if (incidentPoints && incidentPoints.length > 0) {
+            mapInstance.fitBounds([[v.lat, v.lng], [incidentPoints[0].lat, incidentPoints[0].lng]], { padding: [60, 60], duration: 1 });
           } else {
             mapInstance.flyTo([v.lat, v.lng], 14, { duration: 1 });
           }
@@ -730,8 +801,41 @@
         clearRoute();
         updatePanel(checkins);
       } else {
-        drawRoute(id, lat, lng).then(() => updatePanel(checkins));
+        if (!incidentPoints || incidentPoints.length === 0) {
+          alert('ไม่มีจุดเกิดเหตุ กรุณาเพิ่มจุดเกิดเหตุก่อน');
+          return;
+        }
+        if (incidentPoints.length === 1) {
+          drawRoute(id, lat, lng, incidentPoints[0].lat, incidentPoints[0].lng).then(() => updatePanel(checkins));
+        } else {
+          showSelectIncidentModal(id, lat, lng);
+        }
       }
+    }
+
+    function showSelectIncidentModal(vehicleId, vLat, vLng) {
+      const modal = document.getElementById('select-inc-modal');
+      const list = document.getElementById('select-inc-list');
+      list.innerHTML = '';
+      
+      incidentPoints.forEach((inc, idx) => {
+        const btn = document.createElement('button');
+        btn.style.cssText = "display:flex; justify-content:space-between; align-items:center; width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; background:#f9f9f9; cursor:pointer; text-align:left;";
+        btn.innerHTML = `
+          <div>
+            <div style="font-weight:bold; color:#e63946;">🚨 ${inc.name || 'จุดเกิดเหตุ'}</div>
+            <div style="font-size:0.85em; color:#666;">${inc.address}</div>
+          </div>
+          <span style="color:#1a73e8; font-weight:bold;">เลือก →</span>
+        `;
+        btn.onclick = () => {
+          modal.style.display = 'none';
+          drawRoute(vehicleId, vLat, vLng, inc.lat, inc.lng).then(() => updatePanel(checkins));
+        };
+        list.appendChild(btn);
+      });
+      
+      modal.style.display = 'flex';
     }
 
     function togglePanel() {

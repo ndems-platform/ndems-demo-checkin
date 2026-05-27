@@ -190,8 +190,11 @@
     // ── ดึงจุดเกิดเหตุจาก Firebase ──
     async function getIncident() {
       try {
-        const inc = await SyncManager.getIncident();
-        if (inc && inc.lat && inc.lng) return inc;
+        const incData = await SyncManager.getIncident();
+        if (incData) {
+          const inc = Array.isArray(incData) ? incData[0] : incData;
+          if (inc && inc.lat && inc.lng) return inc;
+        }
       } catch (e) { }
       // Default fallback: Kamphaeng Saen area
       return { lat: 14.0182, lng: 99.9584 };

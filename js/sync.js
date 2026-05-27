@@ -11,6 +11,7 @@ const SyncManager = (() => {
   let _checkins = {};
   let _onUpdateCb = null;
   let _onIncidentCb = null;
+  let _incidentCache = undefined; // undefined=not yet received, null=explicitly empty
 
   async function _ensureClient() {
     if (_client) return _client;
@@ -39,6 +40,7 @@ const SyncManager = (() => {
           } else if (topic === TOPIC_PREFIX + 'incident') {
             try {
               const inc = payload && payload !== "" ? JSON.parse(payload) : null;
+              _incidentCache = inc; // Always cache locally
               if (_onIncidentCb) _onIncidentCb(inc);
             } catch(e) {}
           }
@@ -76,29 +78,39 @@ const SyncManager = (() => {
 
   async function saveIncident(incObj) {
     const client = await _ensureClient();
+    _incidentCache = incObj; // Update local cache immediately
     client.publish(TOPIC_PREFIX + 'incident', JSON.stringify(incObj), { retain: true });
   }
 
   async function getIncident() {
     await _ensureClient();
-    // Wait briefly to see if we get a retained message, else return null
+    // If we already have cached data from a previous message, return it
+    if (_incidentCache !== undefined) {
+      return _incidentCache;
+    }
+    // Otherwise wait for retained message to arrive
     return new Promise((resolve) => {
       let resolved = false;
+      const prevCb = _onIncidentCb;
       const cb = (inc) => {
         if (!resolved) {
           resolved = true;
-          _onIncidentCb = null;
           resolve(inc);
+        }
+        // Restore previous callback (e.g. watchIncident)
+        if (prevCb) {
+          _onIncidentCb = prevCb;
+          prevCb(inc);
         }
       };
       _onIncidentCb = cb;
       setTimeout(() => {
         if (!resolved) {
           resolved = true;
-          _onIncidentCb = null;
-          resolve(null);
+          _onIncidentCb = prevCb || null;
+          resolve(_incidentCache !== undefined ? _incidentCache : null);
         }
-      }, 1500); // Wait 1.5s for retained message
+      }, 3000);
     });
   }
 
