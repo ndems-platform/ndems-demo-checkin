@@ -276,6 +276,7 @@ body:has(.side-panel.collapsed) #map { right: 0; }
 .panel-list {
   flex: 1; overflow-y: auto; padding: .75rem;
   display: flex; flex-direction: column; gap: .5rem;
+  min-height: 0;
 }
 .panel-list::-webkit-scrollbar { width: 4px; }
 .panel-list::-webkit-scrollbar-track { background: transparent; }
@@ -296,6 +297,7 @@ body:has(.side-panel.collapsed) #map { right: 0; }
   padding: .75rem;
   cursor: pointer;
   transition: all .2s ease;
+  flex-shrink: 0;
 }
 .vehicle-card:hover {
   background: rgba(255,255,255,.1);
@@ -322,7 +324,7 @@ body:has(.side-panel.collapsed) #map { right: 0; }
 .vc-time { font-size: .65rem; color: rgba(255,255,255,.35); margin-bottom: .5rem; }
 
 /* ===== VEHICLE CARD ACTIONS ===== */
-.vc-actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+.vc-actions { display: flex; flex-direction: column; gap: .4rem; }
 .btn-route {
   flex: 1;
   background: rgba(244,162,97,.15);
